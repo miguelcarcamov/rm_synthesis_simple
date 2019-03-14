@@ -95,7 +95,7 @@ axarr[2,0].set_xlim([start, end])
 
 #Measured P
 axarr[2,1].plot(lambda2, np.abs(P_meas), '+')
-axarr[2,1].set(xlabel=r'$\lambda^2$ [m$^{-2}$]')
+axarr[2,1].set(xlabel=r'$\lambda^2$ [m$^{2}$]')
 axarr[2,1].set_ylim([0, None])
 axarr[2,1].set_xlim([0, 1])
 
