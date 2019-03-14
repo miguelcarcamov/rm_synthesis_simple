@@ -57,17 +57,19 @@ F[ps_1_idx] = ps_F[0];
 F[ps_2_idx[0]:ps_2_idx[1]] = ps_F[1];
 F[ps_3_idx[0]:ps_3_idx[1]] = ps_F[2];
 
-P = form_P(W, F, phi, lambda2, m)
+P = form_P(F, phi, lambda2, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
 F_meas = form_F(K, P, W, phi, lambda2, lambda2_ref, n)
+P_meas = form_P_meas(W, F, phi, lambda2, m)
 
 f, axarr = plt.subplots(3, 2)
+
 axarr[0,0].plot(phi, abs(F))
 axarr[0,1].plot(lambda2, abs(P))
 axarr[1,0].plot(phi, abs(R))
 axarr[1,1].plot(lambda2, abs(W))
 axarr[2,0].plot(phi, abs(F_meas))
-axarr[2,1].plot(lambda2, abs(P))
+axarr[2,1].plot(lambda2, abs(P_meas))
 #plt.plot(phi, abs(F_meas))
 #plt.plot(phi, true_emission);
 #plt.show()

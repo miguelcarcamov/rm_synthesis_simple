@@ -8,12 +8,17 @@ Created on Tue Mar 12 18:34:19 2019
 
 import numpy as np
 
-def form_P(W, F, phi, lambda2, m):
+def form_P_meas(W, F, phi, lambda2, m):
     P = np.zeros(m) + 1j*np.zeros(m)
     for i in range(0,m):
         P[i] = W[i]*np.sum(F*np.exp(2j*phi*lambda2[i]));
     return P
 
+def form_P(F, phi, lambda2, m):
+    P = np.zeros(m) + 1j*np.zeros(m)
+    for i in range(0,m):
+        P[i] = 1.0*np.sum(F*np.exp(2j*phi*lambda2[i]));
+    return P
 
 def form_F(K, P, W, phi, lambda2, lambda2_ref, n):
     F = np.zeros(n) + 1j*np.zeros(n)
