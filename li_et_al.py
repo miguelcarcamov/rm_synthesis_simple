@@ -27,7 +27,8 @@ lambda1 = np.linspace(w_range[1], w_range[0], m)
 
 lambda2 = lambda1*lambda1
 
-lambda2_ref = np.median(lambda2)
+#lambda2_ref = np.median(lambda2)
+lambda2_ref = 0
 
 delta_lambda2 = lambda2[1] - lambda2[0]
 
