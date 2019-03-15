@@ -11,7 +11,7 @@ rc('text', usetex=True)
 
 c = 2.99792458e8
 n = 500 # -> phi_space
-m = 200 # -> lambda2_space
+m = 126 # -> lambda2_space
 
 start_range = 3.6 #cm
 end_range = 100.0 #cm
@@ -29,7 +29,7 @@ lambda2 = lambda1*lambda1
 
 delta_lambda2 = lambda2[1] - lambda2[0]
 
-lambda2_ref = np.median(lambda2)
+#lambda2_ref = np.median(lambda2)
 
 start = -150
 end = 150
@@ -57,6 +57,9 @@ pos_end_w = (np.abs(lambda2-(stop_b_range/100.0)**2)).argmin()
 W[pos_start_w:pos_end_w] = 1
 
 K = 1/np.sum(W);
+
+lambda2_ref = np.sum(W*lambda2)/np.sum(W);
+#print(lambda2, lambda2_ref)
 
 F[ps_1_idx] = ps_F[0];
 F[ps_2_idx[0]:ps_2_idx[1]] = ps_F[1];

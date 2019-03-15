@@ -64,7 +64,8 @@ R = form_R(K, W, phi, lambda2, lambda2_ref, n)
 P_meas = form_P_meas(W, F, phi, lambda2, m)
 F_meas = form_F_meas(K, P_meas, phi, lambda2, lambda2_ref, n)
 
-plt.plot(phi, F_meas.real, 'k-')
+plt.plot(phi, abs(F_meas), 'k-')
+plt.plot(phi, F_meas.real, 'k-.')
 plt.plot(phi, F_meas.imag , 'k--')
 plt.xlim([-200, 200])
 
