@@ -10,22 +10,24 @@ rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 rc('text', usetex=True)
 
 c = 2.99792458e8
-n = 200 # -> phi_space
-m = 300 # -> lambda2_space
+n = 500 # -> phi_space
+m = 200 # -> lambda2_space
 
 start_range = 3.6 #cm
-end_range = 95.0 #cm
+end_range = 100.0 #cm
 
 stop_a_range = 3.6 #cm
 stop_b_range = 50.0 #cm
 
 w_range = np.array([end_range, start_range])/100.0 #wavelength in metres
 
-nu_range = c/(w_range) # frequency in Hz
+#nu_range = c/(w_range) # frequency in Hz
 
 lambda1 = np.linspace(w_range[1], w_range[0], m)
 
 lambda2 = lambda1*lambda1
+
+delta_lambda2 = lambda2[1] - lambda2[0]
 
 lambda2_ref = np.median(lambda2)
 
