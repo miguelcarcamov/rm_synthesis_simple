@@ -16,10 +16,10 @@ c = 2.99792458e8
 m = 126 # -> lambda2_space
 
 start_range = 3.6 #lambda start cm
-end_range = 50.0 #lambda start cm
+end_range = 50.0 #lambda end cm
 
 w_a_range = 3.6 #weights start cm
-w_b_range = 50.0 #weights cm
+w_b_range = 50.0 #weights end cm
 
 w_range = np.array([end_range, start_range])/100.0 #wavelength ranges in metres
 
@@ -35,6 +35,8 @@ delta_lambda2 = lambda2[1] - lambda2[0]
 delta_total_lambda2 = lambda2[len(lambda2)-1] - lambda2[0]
 
 phi_max = np.sqrt(3)/delta_lambda2
+
+#phi_max = np.pi/lambda2[0]
 
 delta_phi = 2*np.sqrt(3)/delta_total_lambda2
 
