@@ -3,6 +3,7 @@ import numpy as np
 import numpy as np
 import matplotlib.pyplot as plt
 from transforms import *
+from FISTA_RMS import *
 from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
@@ -57,54 +58,53 @@ for i in range(0,len(sources_F)):
 P = form_P(F, phi, lambda2, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
 P_meas = form_P_meas(W, F, phi, lambda2, m)
-#F_meas = form_F_meas(K, P_meas, phi, lambda2, lambda2_ref, n)
+F_dirty = form_F_meas(K, P_meas, phi, lambda2, lambda2_ref, n)
 
-plt.plot(lambda2, abs(P_meas), 'k-')
-plt.plot(lambda2, P_meas.real, 'k-.')
-plt.plot(lambda2, P_meas.imag , 'k--')
-#plt.xlim([-200, 200])
+soft_threshold = 1.0
+iterations = 600
 
-#soft_threshold = 1.0
-#stop_threshold = 0.001
-#iterations = 0
+F_recon_thin = FISTA_Thin(P_meas, W, phi, lambda2, lambda2_ref, m, n, soft_threshold, 600)
+F_recon_thick = FISTA_Thick(P_meas, W, phi, lambda2, lambda2_ref, m, n, soft_threshold, 600)
+F_recon_mix = FISTA_Mix(P_meas, W, phi, lambda2, lambda2_ref, m, n, soft_threshold, 600)
 
-#Fthin = F_meas
-#Fthick = np.zeros(n) + 1j*np.zeros(n)
+f, axarr = plt.subplots(2, 3)
 
-#for i in range(0, iterations):
-    #Faraday thin sources
-    #residual = P_meas - form_P_meas(W, Fthin, phi, lambda2, m) - form_P_meas(W, Fthick, phi, lambda2, m)
-    #d = form_F_meas_li(K, residual, phi, lambda2, lambda2_ref, n)
-    #Fthin = Fthin + d
-    #re_pos = np.where(Fthin.real < soft_threshold)
-    #im_pos = np.where(Fthin.imag < soft_threshold)
-    #Fthin[re_pos].real = 0.0
-    #Fthin[im_pos].imag = 0.0
-    #Faraday thick sources
-    #Fthick = Fthick + d
-    #coeffA_re, coeffD_re  = pywt.dwt(Fthick.real, 'db8', pywt.Modes.zero)
-    #coeffA_im, coeffD_im = pywt.dwt(Fthick.imag, 'db8', pywt.Modes.zero)
-    #Soft thresholding in wavelet space real part
-    #reA_pos = np.where(coeffA_re < soft_threshold)
-    #reD_pos = np.where(coeffD_re < soft_threshold)
-    #Applying the thresholding real part
-    #coeffA_re[reA_pos] = 0.0
-    #coeffD_re[reD_pos] = 0.0
-    #Soft thresholding in wavelet space imaginary part
-    #imA_pos = np.where(coeffA_im < soft_threshold)
-    #imD_pos = np.where(coeffD_im < soft_threshold)
-    #Applying the thresholding imaginary part
-    #coeffA_im[imA_pos] = 0.0
-    #coeffD_im[imD_pos] = 0.0
-    #Update Fthick
-    #inv_real = pywt.idwt(coeffA_re, coeffD_re, 'db8', pywt.Modes.zero)
-    #inv_imag = pywt.idwt(coeffA_im, coeffD_im, 'db8', pywt.Modes.zero)
-    #Fthick.real = inv_real[0:len(inv_real)-1]
-    #Fthick.imag = inv_imag[0:len(inv_real)-1]
-    
+axarr[0,0].plot(phi, np.abs(F), 'k-')
+axarr[0,0].plot(phi, F.real, 'k-.')
+axarr[0,0].plot(phi, F.imag, 'k--')
+axarr[0,0].set_ylim([None, None])
+axarr[0,0].set_xlim([-200, 200])
+axarr[0,0].set(title='Original')
 
-#F_recon = Fthin + Fthick
-#plt.plot(phi, abs(F_recon), 'k-')
-#plt.plot(phi, F_recon.real, 'k-.')
-#plt.plot(phi, F_recon.imag , 'k--')
-#plt.xlim([-200, 200])
+axarr[0,1].plot(phi, np.abs(F_dirty), 'k-')
+axarr[0,1].plot(phi, F_dirty.real, 'k-.')
+axarr[0,1].plot(phi, F_dirty.imag, 'k--')
+axarr[0,1].set_ylim([None, None])
+axarr[0,1].set_xlim([-200, 200])
+axarr[0,1].set(title='Dirty curve')
+
+axarr[1,0].plot(phi, np.abs(F_recon_thin), 'k-')
+axarr[1,0].plot(phi, F_recon_thin.real, 'k-.')
+axarr[1,0].plot(phi, F_recon_thin.imag, 'k--')
+axarr[1,0].set_ylim([None, None])
+axarr[1,0].set_xlim([-200, 200])
+axarr[1,0].set(title='CS-RM-Thin')
+
+axarr[1,1].plot(phi, np.abs(F_recon_thick), 'k-')
+axarr[1,1].plot(phi, F_recon_thick.real, 'k-.')
+axarr[1,1].plot(phi, F_recon_thick.imag, 'k--')
+axarr[1,1].set_ylim([None, None])
+axarr[1,1].set_xlim([-200, 200])
+axarr[1,1].set(title='CS-RM-Thick')
+
+
+axarr[1,2].plot(phi, np.abs(F_recon_mix), 'k-')
+axarr[1,2].plot(phi, F_recon_mix.real, 'k-.')
+axarr[1,2].plot(phi, F_recon_mix.imag, 'k--')
+axarr[1,2].set_ylim([None, None])
+axarr[1,2].set_xlim([-200, 200])
+axarr[1,2].set(title='CS-RM-Mix')
+
+plt.subplots_adjust(right=3.0)
+plt.subplots_adjust(top=2.0)
+plt.subplots_adjust(bottom=0.5)
