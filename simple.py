@@ -13,21 +13,35 @@ c = 2.99792458e8
 n = 500 # -> phi_space
 m = 126 # -> lambda2_space
 
-start_range = 3.6 #cm
-end_range = 100.0 #cm
+w_min = 3.6 #cm
+w_max = 110.0 #cm #had to add 10 cm, because with 100.0 cm I would get just 125 samples and I need 126
 
 stop_a_range = 3.6 #cm
 stop_b_range = 50.0 #cm
 
-w_range = np.array([end_range, start_range])/100.0 #wavelength in metres
+w2_min = (w_min/100.0)*(w_min/100.0)
+w2_max = (w_max/100.0)*(w_max/100.0)
 
-#nu_range = c/(w_range) # frequency in Hz
+#delta_lambda = lambda2[1]-lambda2[0]
+lambda2_ref = (w2_max+w2_min)/2
 
-lambda1 = np.linspace(w_range[1], w_range[0], m)
+delta_lambda2 = (w2_max-w2_min)/(m-1)
 
-lambda2 = lambda1*lambda1
+lambda2 = np.arange(w2_min, w2_max, delta_lambda2)
 
-delta_lambda2 = lambda2[1] - lambda2[0]
+delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
+
+phi_max = np.sqrt(3)/(delta_lambda2)
+
+times = 4
+
+phi_r = delta_phi/times
+
+temp = np.int(np.floor(2*phi_max/phi_r))
+n = temp
+
+phi_r = 2*phi_max/n;
+phi = phi_r*np.arange(-(n/2),(n/2), 1)
 
 #lambda2_ref = np.median(lambda2)
 
@@ -58,7 +72,7 @@ W[pos_start_w:pos_end_w] = 1
 
 K = 1/np.sum(W);
 
-lambda2_ref = np.sum(W*lambda2)/np.sum(W);
+#lambda2_ref = np.sum(W*lambda2)/np.sum(W);
 #print(lambda2, lambda2_ref)
 
 F[ps_1_idx] = ps_F[0];
