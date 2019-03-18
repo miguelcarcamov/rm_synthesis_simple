@@ -82,7 +82,7 @@ F[ps_3_idx[0]:ps_3_idx[1]] = ps_F[2];
 P = form_P(F, phi, lambda2, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
 P_meas = form_P_meas(W, F, phi, lambda2, m)
-F_meas = form_F_meas(K, P_meas, phi, lambda2, lambda2_ref, n)
+F_meas = form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n)
 
 f, axarr = plt.subplots(3, 2)
 
