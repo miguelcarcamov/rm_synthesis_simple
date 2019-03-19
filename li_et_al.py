@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from transforms import *
 from FISTA_RMS import *
+from rm_clean import *
 from matplotlib import rc
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
@@ -66,6 +67,7 @@ iterations = 500
 F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations)
 F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations)
 F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations)
+F_recon_rmclean = RM_CLEAN(P_meas, R, W, K, phi, lambda2, lambda2_ref, m, n, 50000, 0.1)
 
 f, axarr = plt.subplots(2, 3)
 
@@ -82,6 +84,13 @@ axarr[0,1].plot(phi, F_dirty.imag, 'k--')
 axarr[0,1].set_ylim([None, None])
 axarr[0,1].set_xlim([-200, 200])
 axarr[0,1].set(title='Dirty curve')
+
+axarr[0,2].plot(phi, np.abs(F_recon_rmclean), 'k-')
+axarr[0,2].plot(phi, F_recon_rmclean.real, 'k-.')
+axarr[0,2].plot(phi, F_recon_rmclean.imag, 'k--')
+axarr[0,2].set_ylim([None, None])
+axarr[0,2].set_xlim([-200, 200])
+axarr[0,2].set(title='RM CLEAN')
 
 axarr[1,0].plot(phi, np.abs(F_recon_thin), 'k-')
 axarr[1,0].plot(phi, F_recon_thin.real, 'k-.')
