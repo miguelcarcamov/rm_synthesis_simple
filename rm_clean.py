@@ -40,29 +40,37 @@ def fwhm(x, y, k=3):
     else:
         return abs(roots[1] - roots[0])
 
-def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain):
+def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain, threshold):
     dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    rmsf = abs(R)
     fwhm_R = fwhm(phi, abs(R))
     g = gaussian(phi, 1.0, 0.0, fwhm_R/2)
     faraday_model = np.zeros(n) + 1j*np.zeros(n)
-    dirty_padded = np.zeros(2*n-1) + 1j*np.zeros(2*n-1)
-    center_idx = np.arange(n-1-(n/2), n-1+(n/2)).astype(int)
-    
-    dirty_padded[center_idx] = dirty_F
-    for i in range(0, iterations):
-        dirty_F = dirty_padded[center_idx]
-        correlation = sci.convolve(dirty_F, R, 'full', 'auto')
+    i = 0
+    while i < iterations and np.sum(np.abs(dirty_F)) > threshold:
+        correlation = sci.convolve(dirty_F, rmsf, 'same', 'auto')
+        corr_real = correlation.real
+        corr_imag = correlation.imag
         
-        centercorr = correlation[center_idx]
-        peak_idx = np.where(centercorr  == np.max(centercorr))
-        peak_idx = peak_idx[0][0]
-        peak = dirty_F[peak_idx]
-        faraday_model[peak_idx] = faraday_model[peak_idx] + gain * peak
+        peak_idx_real = np.where(corr_real  == np.max(corr_real))
+        peak_idx_imag = np.where(corr_imag  == np.max(corr_imag))
+        peak_idx_real = peak_idx_real[0][0]
+        peak_idx_imag = peak_idx_imag[0][0]
         
-        indx = np.arange(peak_idx, peak_idx + n).astype(int)
-        dirty_padded[indx] = dirty_padded[indx] - gain*(peak)*R
+        peak_real = dirty_F[peak_idx_real].real
+        peak_imag = dirty_F[peak_idx_imag].imag
+        #Storing a delta component at that location
+        spike = faraday_model[peak_idx_real].real + gain * peak_real + faraday_model[peak_idx_imag].imag + gain * peak_imag
+        faraday_model[peak_idx_real] = spike
+        
+        dif_real = int(np.floor(peak_idx_real - (n/2)))
+        dif_imag = int(np.floor(peak_idx_imag - (n/2)))
+        shifted_R_real = np.roll(rmsf,dif_real)
+        shifted_R_imag = np.roll(rmsf,dif_imag)
 
-    
-    residuals = dirty_padded[center_idx]
+        dirty_F.real = dirty_F.real - gain*peak_real*shifted_R_real
+        dirty_F.imag = dirty_F.imag - gain*peak_imag*shifted_R_imag
+        i = i+1
+    residuals = dirty_F
     model_conv = sci.convolve(faraday_model, g, 'same', 'auto')
     return model_conv + residuals
