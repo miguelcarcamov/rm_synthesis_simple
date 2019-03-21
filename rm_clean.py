@@ -42,8 +42,8 @@ def fwhm(x, y, k=3):
 
 def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain, threshold, cross_corr=False):
     dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-    rmsf = abs(R)
-    fwhm_R = fwhm(phi, abs(R))
+    rmsf = R
+    fwhm_R = fwhm(phi, np.abs(R))
     g = gaussian(phi, 1.0, 0.0, fwhm_R/2)
     faraday_model = np.zeros(n) + 1j*np.zeros(n)
     i = 0
@@ -68,8 +68,8 @@ def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain, thre
 
         shifted_scaled_rmsf = np.roll(rmsf,shft)*scaled_peak
         plt.cla()
-        plt.plot(np.abs(correlation))
-        plt.plot(np.abs(dirty_F) , '-.', linewidth=0.5)
+        plt.plot(np.abs(shifted_scaled_rmsf.real))
+        plt.plot(np.abs(dirty_F.real) , '-.', linewidth=0.5)
         plt.savefig('Frame%03d.png' %i)
         dirty_F = dirty_F - shifted_scaled_rmsf
         
