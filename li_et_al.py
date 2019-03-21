@@ -1,6 +1,4 @@
 import numpy as np
-
-import numpy as np
 import matplotlib.pyplot as plt
 from transforms import *
 from FISTA_RMS import *
