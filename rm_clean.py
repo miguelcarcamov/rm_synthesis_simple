@@ -42,14 +42,22 @@ def fwhm(x, y, k=3):
 
 def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain, threshold, cross_corr=False):
     dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    
+    #idx_center = np.arange(n-1-(n/2), n-1+(n/2)).astype(int)
     rmsf = R
-    fwhm_R = fwhm(phi, np.abs(R))
-    g = gaussian(phi, 1.0, 0.0, fwhm_R/2)
+    
+    fwhm_R = fwhm(phi, np.abs(rmsf))/2.0/np.sqrt(2.0 * np.log(2.0))
+    g = gaussian(phi, 1.0, 0.0, fwhm_R)
+    
     faraday_model = np.zeros(n) + 1j*np.zeros(n)
+    #dirty_padded = np.zeros(2*n-1) + 1j*np.zeros(2*n-1)
+
+    #dirty_padded[idx_center] = dirty_F
+    
     i = 0
     
     if cross_corr:
-        correlation = np.correlate(dirty_F, rmsf, 'same')
+        correlation = np.correlate(dirty_F-np.mean(dirty_F), rmsf-np.mean(rmsf), 'same')
         peak_idx = np.argmax(np.abs(correlation))
     else:
         peak_idx = np.argmax(np.abs(dirty_F))
@@ -57,34 +65,37 @@ def RM_CLEAN(P, R, W, K, phi, lambda2, lambda2_ref, m, n, iterations, gain, thre
     peak = dirty_F[peak_idx]
     
     while i < iterations and np.abs(peak) >= threshold:
-        print("Iteration: ", i, "- Peak ", np.abs(peak), "at position: ", peak_idx)
+        #print("Iteration: ", i, "- Peak ", np.abs(peak), "at position: ", peak_idx)
         #Scaled peak value
-        scaled_peak = gain*peak
         #Storing a delta component at that location
-        faraday_model[peak_idx] = faraday_model[peak_idx] + scaled_peak
+        faraday_model[peak_idx] = faraday_model[peak_idx] + gain * peak
          
-        #Calculate how many pixels to shift the rmsf
-        shft = int(np.floor(peak_idx - (n/2)))
+        #Calculate how many pixels to shift the rmsf       
 
-        shifted_scaled_rmsf = np.roll(rmsf,shft)*scaled_peak
-        plt.cla()
-        plt.plot(np.abs(shifted_scaled_rmsf.real))
-        plt.plot(np.abs(dirty_F.real) , '-.', linewidth=0.5)
-        plt.savefig('Frame%03d.png' %i)
-        dirty_F = dirty_F - shifted_scaled_rmsf
-        
+        shft = peak_idx - np.argmax(np.abs(rmsf))
+        shifted_rmsf = np.roll(rmsf, shft)
+        #plt.cla()
+        #plt.plot(np.abs(correlation), 'r--')
+        #plt.plot(np.abs(dirty_F), 'b--', linewidth =0.5)
+        #plt.plot(dirty_value , 'g-.', linewidth=5.0)
+        #plt.savefig('Frame%03d.png' %i)
+        #Substract a shifted and scaled rmsf from the dirty F
+        dirty_F = dirty_F - gain*peak*shifted_rmsf
         i = i+1
         
+        #Search the maximum value of the cross-correlation between dirty_F and the rmsf. Or find the maximum in the dirty_F
         if cross_corr:
-            correlation = np.correlate(dirty_F, rmsf, 'same')
+            correlation = np.correlate(dirty_F-np.mean(dirty_F), rmsf-np.mean(rmsf), 'same')
             peak_idx = np.argmax(np.abs(correlation))
         else:
             peak_idx = np.argmax(np.abs(dirty_F))
-            
+        
+        #The peak is the value of the dirty_F in that index
         peak = dirty_F[peak_idx]
         
         
        
     residuals = dirty_F
     model_conv = sci.convolve(faraday_model, g, 'same', 'auto')
-    return model_conv + residuals
+    return faraday_model
+    #return faraday_model

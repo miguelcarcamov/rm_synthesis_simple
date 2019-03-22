@@ -97,8 +97,8 @@ axarr[0,1].set_ylim([0, None])
 axarr[0,1].set_xlim([0, 1])
 
 # R
-axarr[1,0].plot(phi, np.abs(R))
-axarr[1,0].set_ylim([0, 1])
+axarr[1,0].plot(phi, R.real)
+axarr[1,0].set_ylim([-1, 1])
 axarr[1,0].set_xlim([start, end])
 
 # Weight function
