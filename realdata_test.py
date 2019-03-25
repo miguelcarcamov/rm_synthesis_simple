@@ -10,9 +10,10 @@ import numpy as np
 import sys
 
 RPDEG = (np.pi/180.0) #Radians per degree
+c = 2.99792458e8
 
-def readHeader(path, fitsfile):
-    f_filename = path + fitsfile
+def readHeader(fitsfile):
+    f_filename = fitsfile
     i_image = fits.open(f_filename)
     i_header = i_image[0].header
     M = i_header['NAXIS1']
@@ -27,12 +28,10 @@ def readHeader(path, fitsfile):
     crpix1 = i_header['CRPIX1']
     crpix2 = i_header['CRPIX2']
     
-    header = [M,N, bmaj, bmin, bpa, cdelt1, cdelt2, ra, dec, crpix1, crpix2]
+    return [M,N, bmaj, bmin, bpa, cdelt1, cdelt2, ra, dec, crpix1, crpix2]
     
-    return header
-    
-def getFileNFrequencies(path, filename):
-    f_filename = path+filename
+def getFileNFrequencies(filename):
+    f_filename = filename
     try:
         with open(f_filename, "r") as f:     
             freqs = f.readlines()
@@ -44,8 +43,8 @@ def getFileNFrequencies(path, filename):
         sys.exit(1)
     return m, freqs
 
-def getFileData(path, filename):
-    f_filename = path+filename
+def getFileData(filename):
+    f_filename = filename
     array_par = np.loadtxt(f_filename, comments='%', usecols=1)
     dec_min = array_par[0]
     dec_max = array_par[1]
@@ -56,10 +55,13 @@ def getFileData(path, filename):
     cutoff = array_par[6]
     threshold = array_par[7]
     
-    return [dec_min, dec_max, ra_min, ra_max, gain, niter, cutoff, threshold]
+    cutoff_params = [dec_min, dec_max, ra_min, ra_max]
+    clean_params = [gain, niter, cutoff, threshold]
+    
+    return clean_params, cutoff_params
     
 def readCube(path, M, N, m, stokes):
-    cube = np.zeros([m,M,N])
+    cube = np.zeros([m, M, N])
     for i in range(0,m):
         f_filename = path+'BAND03_CHAN'+str(m)+'_'+stokes+'image.restored.corr_conv.fits'
         i_image = fits.open(f_filename)
@@ -74,3 +76,37 @@ def writeCube(cube, output):
     for img in cube:
         hdul.append(fits.ImageHDU(data=img))
     hdul.writeto(output)
+    
+    
+freq_text_file = sys.argv[1]
+params_file = sys.argv[2]
+path_Q = sys.argv[3]
+path_U = sys.argv[4]
+fits_file = sys.argv[5]
+output_file = sys.argv[6]
+# Get number of frequencies and values
+m, freqs = getFileNFrequencies(freq_text_file)
+# Get information from header
+header = readHeader(fits_file)
+M = header[0]
+N = header[1]
+dx = -1.0*header[5]*RPDEG #to radians
+dy = header[6]*RPDEG #to radians
+ra = header[7]*RPDEG #to radians
+dec= header[8]*RPDEG #to radians
+crpix1 = header[9] #center in pixels
+crpix2 = header[10] #center in pixels
+# Get cutoff and RM-CLEAN params
+cutoff_params, clean_params = getFileData(params_file)
+# Read cubes Q and U
+Q = readCube(path_Q, M, N, m, "Q")
+U = readCube(path_U, M, N, m, "U")
+# Build P
+P = Q + 1j*U
+
+for i in range(0,M):
+    for j in range(0,N):
+        if i<=params_file[1] and i>params_file[0] and j<=params_file[3] and j>params_file[2]:
+            #Optimize P[:,i,j]
+        else:
+            P[:,i,j] = 0
