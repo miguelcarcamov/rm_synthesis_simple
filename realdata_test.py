@@ -56,9 +56,9 @@ def getFileData(path, filename):
     cutoff = array_par[6]
     threshold = array_par[7]
     
-    return dec_min, dec_max, ra_min, ra_max, gain, niter, cutoff, threshold
+    return [dec_min, dec_max, ra_min, ra_max, gain, niter, cutoff, threshold]
     
-def readCubes(path, M, N, m, stokes):
+def readCube(path, M, N, m, stokes):
     cube = np.zeros([m,M,N])
     for i in range(0,m):
         f_filename = path+'BAND03_CHAN'+str(m)+'_'+stokes+'image.restored.corr_conv.fits'
@@ -67,4 +67,10 @@ def readCubes(path, M, N, m, stokes):
         cube[i] = data
         
     return cube
-def writeCubes():
+
+def writeCube(cube, output):
+    hdul = fits.HDUList()
+    hdul.append(fits.PrimaryHDU())
+    for img in cube:
+        hdul.append(fits.ImageHDU(data=img))
+    hdul.writeto(output)
