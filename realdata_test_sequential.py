@@ -50,14 +50,15 @@ def getFileNFrequencies(filename):
 def getFileData(filename):
     f_filename = filename
     array_par = np.loadtxt(f_filename, comments='%', usecols=1)
-    dec_min = array_par[0]
-    dec_max = array_par[1]
-    ra_min = array_par[2]
-    ra_max = array_par[3]
-    gain = array_par[4]
-    niter = array_par[5]
-    cutoff = array_par[6]
-    threshold = array_par[7]
+    dec_min = int(array_par[0])
+    dec_max = int(array_par[1])
+    ra_min = int(array_par[2])
+    ra_max = int(array_par[3])
+
+    gain = float(array_par[4])
+    niter = int(array_par[5])
+    cutoff = float(array_par[6])
+    threshold = float(array_par[7])
     
     cutoff_params = [dec_min, dec_max, ra_min, ra_max]
     clean_params = [gain, niter, cutoff, threshold]
@@ -67,7 +68,8 @@ def getFileData(filename):
 def readCube(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
-        f_filename = path+'BAND03_CHAN'+str(m)+'_'+stokes+'image.restored.corr_conv.fits'
+        f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
+        print("Reading FITS File: ", f_filename)
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
         cube[i] = data
@@ -78,9 +80,8 @@ def writeCube(cube, output):
     hdul = fits.HDUList()
     hdul.append(fits.PrimaryHDU())
     for img in cube:
-        hdul.append(fits.ImageHDU(data=img))
+        hdul.append(fits.ImageHDU(data=img.real))
     hdul.writeto(output)
-    
     
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
@@ -100,6 +101,7 @@ lambda2_ref = (w2_max+w2_min)/2.0
 delta_lambda2 = (w2_max-w2_min)/(m-1)
 
 delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
+print("delta phi: ", delta_phi)
 
 phi_max = np.sqrt(3)/(delta_lambda2)
 
@@ -124,26 +126,35 @@ dec= header[8]*RPDEG #to radians
 crpix1 = header[9] #center in pixels
 crpix2 = header[10] #center in pixels
 # Get cutoff and RM-CLEAN params
-cutoff_params, clean_params = getFileData(params_file)
+print("Reading params file: ", params_file)
+clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 Q = readCube(path_Q, M, N, m, "Q")
 U = readCube(path_U, M, N, m, "U")
 # Build P, F, W and K
 P = Q + 1j*U
-F = np.zeros([m, M, N])+1j*np.zeros([m, M, N])
-W = np.ones([m, M, N])
-K = np.zeros([M,N])
-for i in range(0,M):
-    for j in range(0,N):
-        K[i,j] = 1.0/np.sum(W[:,i,j])
+F = np.zeros([n, M, N])+1j*np.zeros([n, M, N])
+W = np.ones(m)
+K = 1.0/np.sum(W)
 
 #FISTA arguments
 soft_t = 0.05
 niter = 2000
+
+pixels = 0
 for i in range(0,M):
     for j in range(0,N):
-        if i<=params_file[1] and i>params_file[0] and j<=params_file[3] and j>params_file[2]:
-            F[:,i,j] = FISTA_Mix(P[:,i,j], W[:,i,j], K[i,j], phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
+        if i<=cutoff_params[1] and i>cutoff_params[0] and j<=cutoff_params[3] and j>cutoff_params[2]:
+            pixels = pixels+1
+
+iterated_pixels = 0
+
+for i in range(0,M):
+    for j in range(0,N):
+        if i<=cutoff_params[1] and i>cutoff_params[0] and j<=cutoff_params[3] and j>cutoff_params[2]:
+            F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
+            iterated_pixels = iterated_pixels + 1
+            print("Optimized pixels: ", iterated_pixels, " - Total pixels: ", pixels, " - Percentage ", 100.0*(iterated_pixels/pixels), "%")
         else:
-            F[:,i,j] = 0
+           F[:,i,j] = 0+1j*0
 writeCube(F, output_file)

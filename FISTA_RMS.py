@@ -115,6 +115,41 @@ def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iteratio
     return F_thin+F_thick
 
 
+def FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
+    F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    F_thick = np.zeros(n) + 1j*np.zeros(n)
+
+    for i in range(0, iterations):
+            #Thin structures
+            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, m)
+            residual = P - F_comb
+            F_thin = F_thin + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            Xreal = F_thin.real
+            Ximag = F_thin.imag
+            X_tempreal = softThreshold(Xreal, soft_threshold)
+            X_tempimag = softThreshold(Ximag, soft_threshold)
+            F_thin = X_tempreal + 1j* X_tempimag
+            
+            #Thick structures
+            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, m)
+            residual = P - F_comb
+            F_thick = F_thick + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            
+            A_re, D_re  = pywt.dwt(F_thick.real, 'db8', pywt.Modes.zero)
+            A_im, D_im = pywt.dwt(F_thick.imag, 'db8', pywt.Modes.zero)
+            
+            A_re = softThreshold(A_re, soft_threshold)
+            D_re = softThreshold(D_re, soft_threshold)
+            A_im = softThreshold(A_im, soft_threshold)
+            D_im = softThreshold(D_im, soft_threshold)
+            
+            real_Xthick = pywt.idwt(A_re, D_re, 'db8', pywt.Modes.zero) 
+            imag_Xthick = pywt.idwt(A_im, D_im, 'db8', pywt.Modes.zero)
+            
+            F_thick = real_Xthick + 1j* imag_Xthick
+    return F_thin+F_thick
+
+
 def FISTA_Mix2(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
     F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
     F_thick = np.zeros(n) + 1j*np.zeros(n)
