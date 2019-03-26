@@ -8,6 +8,9 @@ Created on Mon Mar 25 12:00:57 2019
 from astropy.io import fits
 import numpy as np
 import sys
+from transforms import *
+from FISTA_RMS import *
+from rm_clean import *
 
 RPDEG = (np.pi/180.0) #Radians per degree
 c = 2.99792458e8
@@ -41,6 +44,7 @@ def getFileNFrequencies(filename):
     except IOError:
         print("Cannot open file")
         sys.exit(1)
+    freqs = np.array(freqs)
     return m, freqs
 
 def getFileData(filename):
@@ -86,6 +90,29 @@ fits_file = sys.argv[5]
 output_file = sys.argv[6]
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
+# Calculate the scales for lambda2 and phi
+lambda2 = (c/freqs)**2
+
+w2_min = lambda2[m-1]
+w1_max = lambda2[0]
+
+lambda2_ref = (w2_max+w2_min)/2.0
+delta_lambda2 = (w2_max-w2_min)/(m-1)
+
+delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
+
+phi_max = np.sqrt(3)/(delta_lambda2)
+
+times = 4
+
+phi_r = delta_phi/times
+
+temp = np.int(np.floor(2*phi_max/phi_r))
+n = temp-np.mod(temp,32)
+
+phi_r = 2*phi_max/n;
+phi = phi_r*np.arange(-(n/2),(n/2), 1)
+
 # Get information from header
 header = readHeader(fits_file)
 M = header[0]
@@ -101,12 +128,22 @@ cutoff_params, clean_params = getFileData(params_file)
 # Read cubes Q and U
 Q = readCube(path_Q, M, N, m, "Q")
 U = readCube(path_U, M, N, m, "U")
-# Build P
+# Build P, F, W and K
 P = Q + 1j*U
+F = np.zeros([m, M, N])+1j*np.zeros([m, M, N])
+W = np.ones([m, M, N])
+K = np.zeros([M,N])
+for i in range(0,M):
+    for j in range(0,N):
+        K[i,j] = 1.0/np.sum(W[:,i,j])
 
+#FISTA arguments
+soft_t = 0.05
+niter = 2000
 for i in range(0,M):
     for j in range(0,N):
         if i<=params_file[1] and i>params_file[0] and j<=params_file[3] and j>params_file[2]:
-            #Optimize P[:,i,j]
+            F[:,i,j] = FISTA_Mix(P[:,i,j], W[:,i,j], K[i,j], phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
         else:
-            P[:,i,j] = 0
+            F[:,i,j] = 0
+writeCube(F, output_file)
