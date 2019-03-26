@@ -94,7 +94,7 @@ m, freqs = getFileNFrequencies(freq_text_file)
 lambda2 = (c/freqs)**2
 
 w2_min = lambda2[m-1]
-w1_max = lambda2[0]
+w2_max = lambda2[0]
 
 lambda2_ref = (w2_max+w2_min)/2.0
 delta_lambda2 = (w2_max-w2_min)/(m-1)
