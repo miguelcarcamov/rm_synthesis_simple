@@ -84,15 +84,19 @@ def writeCube(cube, output):
         hdul.append(fits.ImageHDU(data=img))
     hdul.writeto(output)
     
-def ParallelFISTA(z, chunks_start, chunks_end, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
+def ParallelFISTA(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(0,N):
-            if i<=cutoff_params[1] and i>cutoff_params[0] and j<=cutoff_params[3] and j>cutoff_params[2]:
+            if i <= cutoff_params[1] and i > cutoff_params[0] and j <= cutoff_params[3] and j > cutoff_params[2]:
                 F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
-                #iterated_pixels = iterated_pixels + 1
-                #print("Optimized pixels: ", iterated_pixels, " - Total pixels: ", pixels, " - Percentage ", 100.0*(iterated_pixels/pixels), "%")
+                lock.acquire()
+                iterated_pixels = iterated_pixels + 1
+                lock.release()
+                if z==0:
+                    print("Optimized pixels: ", iterated_pixels, " - Total pixels: ", pixels, " - Percentage ", 100.0*(iterated_pixels/pixels), "%")
             else:
                F[:,i,j] = 0+1j*0
+        #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
     
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
@@ -101,6 +105,7 @@ path_U = sys.argv[4]
 fits_file = sys.argv[5]
 output_file = sys.argv[6]
 nprocs = int(sys.argv[7])
+niter = int(sys.argv[8])
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
@@ -141,6 +146,7 @@ crpix2 = header[10] #center in pixels
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
+print("Reading FITS files")
 Q = readCube(path_Q, M, N, m, "Q")
 U = readCube(path_U, M, N, m, "U")
 # Build P, F, W and K
@@ -151,7 +157,6 @@ K = 1.0/np.sum(W)
 
 #FISTA arguments
 soft_t = 0.05
-niter = 2000
 
 pixels = 0
 for i in range(0,M):
@@ -166,8 +171,10 @@ rows_per_thread = int(M/nprocs)
 chunks_start = ids*rows_per_thread
 chunks_end = ids*rows_per_thread + rows_per_thread
 jobs = []
+lock = multiprocessing.Lock()
+print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(z, chunks_start, chunks_end, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
