@@ -185,4 +185,4 @@ for j in jobs:
     
     
 writeCube(F.real, output_file+"_real.fits")
-writeCube(F.real, output_file+"_imag.fits")
+writeCube(F.imag, output_file+"_imag.fits")
