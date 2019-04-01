@@ -179,9 +179,10 @@ for z in range(0,nprocs):
     process.start()
 
 # Ensure all of the processes have finished
+
 for j in jobs:
     j.join()
-    print("Process ", j, " ended - Start: ", chunks_start[j], " End: ", chunks_end[j])
+    print("Process ", j, " ended")
     
     
 writeCube(F.real, output_file+"_real.fits")
