@@ -78,11 +78,8 @@ def readCube(path, M, N, m, stokes):
     return cube
 
 def writeCube(cube, output):
-    hdul = fits.HDUList()
-    hdul.append(fits.PrimaryHDU())
-    for img in cube:
-        hdul.append(fits.ImageHDU(data=img))
-    hdul.writeto(output)
+    hdu_new = fits.PrimaryHDU(cube)
+    hdu_new.writeto(output)
     
 def ParallelFISTA(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
@@ -180,7 +177,7 @@ for z in range(0,nprocs):
 
 # Ensure all of the processes have finished
 
-for j in jobs:
+#for j in jobs:
     j.join()
     print("Process ", j, " ended")
     
