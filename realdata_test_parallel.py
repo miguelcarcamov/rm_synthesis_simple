@@ -177,7 +177,7 @@ for z in range(0,nprocs):
 
 # Ensure all of the processes have finished
 
-#for j in jobs:
+for j in jobs:
     j.join()
     print("Process ", j, " ended")
     
