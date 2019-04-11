@@ -8,10 +8,10 @@
 % ra and dec min and max of the subimage to process, given in pixels
 % a value of -1 means to use the bound of the image
 
-dec_min 603 
-dec_max 1367
-ra_min 540
-ra_max 1457
+dec_min 911 
+dec_max 1174
+ra_min 932
+ra_max 1174
 
 % Define the phi axis, dphi in rad/m/m
 % phi_min -400
