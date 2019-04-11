@@ -82,9 +82,9 @@ def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
     hdu_new.writeto(output)
     
-def ParallelFISTA(lock, z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
+def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(0,N):
+        for j in range(j_min, j_max):
             F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
     
@@ -164,6 +164,8 @@ for i in range(i_min,i_max):
 ids = np.arange(i_min,i_max)
 items = len(ids)
 print("Total pixels: ", items)
+print("Min ra: ", j_min)
+print("Max ra: ", j_max)
 print("Min dec: ", i_min)
 print("Max dec: ", i_max)
 iterated_pixels = 0
@@ -184,7 +186,7 @@ jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
