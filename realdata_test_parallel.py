@@ -179,7 +179,7 @@ print(chunks_start)
 chunks_end = ids[id_procs*chunk_size] + chunk_size
 chunks_end[nprocs-1] = chunks_end[nprocs-1] + rest_chunk
 print(chunks_end)
-sys.exit()
+
 jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
