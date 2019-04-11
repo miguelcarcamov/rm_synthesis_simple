@@ -9,6 +9,7 @@ import multiprocessing
 from astropy.io import fits
 import numpy as np
 import sys
+import ctypes
 from transforms import *
 from FISTA_RMS import *
 from rm_clean import *
@@ -81,18 +82,10 @@ def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
     hdu_new.writeto(output)
     
-def ParallelFISTA(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
+def ParallelFISTA(lock, z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(0,N):
-            if i <= cutoff_params[1] and i > cutoff_params[0] and j <= cutoff_params[3] and j > cutoff_params[2]:
-                F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
-                lock.acquire()
-                iterated_pixels = iterated_pixels + 1
-                lock.release()
-                if z==0:
-                    print("Optimized pixels: ", iterated_pixels, " - Total pixels: ", pixels, " - Percentage ", 100.0*(iterated_pixels/pixels), "%")
-            else:
-               F[:,i,j] = 0+1j*0
+            F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
     
 freq_text_file = sys.argv[1]
@@ -124,7 +117,7 @@ times = 4
 phi_r = delta_phi/times
 
 temp = np.int(np.floor(2*phi_max/phi_r))
-n = temp-np.mod(temp,32)
+n = int(temp-np.mod(temp,32))
 
 phi_r = 2*phi_max/n;
 phi = phi_r*np.arange(-(n/2),(n/2), 1)
@@ -148,35 +141,54 @@ Q = readCube(path_Q, M, N, m, "Q")
 U = readCube(path_U, M, N, m, "U")
 # Build P, F, W and K
 P = Q + 1j*U
-F = np.zeros([n, M, N])+1j*np.zeros([n, M, N])
+
+F_base = multiprocessing.Array(ctypes.c_double, M*N*2*n)
+F = np.ctypeslib.as_array(F_base.get_obj())
+F = F.view(np.complex128).reshape(n, M, N)
+
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
 #FISTA arguments
 soft_t = 0.00001
 
+i_min = cutoff_params[0]
+i_max = cutoff_params[1]
+j_min = cutoff_params[2]
+j_max = cutoff_params[3]
 pixels = 0
-for i in range(0,M):
-    for j in range(0,N):
-        if i<=cutoff_params[1] and i>cutoff_params[0] and j<=cutoff_params[3] and j>cutoff_params[2]:
+for i in range(i_min,i_max):
+    for j in range(j_min,j_max):
             pixels = pixels+1
 
+ids = np.arange(i_min,i_max)
+items = len(ids)
+print("Total pixels: ", items)
+print("Min dec: ", i_min)
+print("Max dec: ", i_max)
 iterated_pixels = 0
 #Call parallel function
-ids = np.arange(0,nprocs)
-rows_per_thread = int(M/nprocs)
-chunks_start = ids*rows_per_thread
-chunks_end = ids*rows_per_thread + rows_per_thread
+
+id_procs = np.arange(0, nprocs)
+chunk_size = int(items/nprocs)
+print("Chunk size: ", chunk_size)
+rest_chunk = items % nprocs
+print("Rest: ", rest_chunk)
+chunks_start = ids[id_procs*chunk_size]
+print(chunks_start)
+chunks_end = ids[id_procs*chunk_size] + chunk_size
+chunks_end[nprocs-1] = chunks_end[nprocs-1] + rest_chunk
+print(chunks_end)
+sys.exit()
 jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
 # Ensure all of the processes have finished
-
 for j in jobs:
     j.join()
     print("Process ", j, " ended")
