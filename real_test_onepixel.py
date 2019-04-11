@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Thu Apr 11 13:24:18 2019
+
+@author: miguel
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Mon Mar 25 12:00:57 2019
 
 @author: miguel
 """
 import multiprocessing
 from astropy.io import fits
+import matplotlib.pyplot as plt
 import numpy as np
 import sys
 from transforms import *
@@ -80,21 +89,7 @@ def readCube(path, M, N, m, stokes):
 def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
     hdu_new.writeto(output)
-    
-def ParallelFISTA(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
-    for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(0,N):
-            if i <= cutoff_params[1] and i > cutoff_params[0] and j <= cutoff_params[3] and j > cutoff_params[2]:
-                F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
-                lock.acquire()
-                iterated_pixels = iterated_pixels + 1
-                lock.release()
-                if z==0:
-                    print("Optimized pixels: ", iterated_pixels, " - Total pixels: ", pixels, " - Percentage ", 100.0*(iterated_pixels/pixels), "%")
-            else:
-               F[:,i,j] = 0+1j*0
-        #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
-    
+        
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
 path_Q = sys.argv[3]
@@ -103,6 +98,8 @@ fits_file = sys.argv[5]
 output_file = sys.argv[6]
 nprocs = int(sys.argv[7])
 niter = int(sys.argv[8])
+pixel_x = int(sys.argv[9])
+pixel_y = int(sys.argv[10])
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
@@ -147,40 +144,38 @@ print("Reading FITS files")
 Q = readCube(path_Q, M, N, m, "Q")
 U = readCube(path_U, M, N, m, "U")
 # Build P, F, W and K
-P = Q + 1j*U
-F = np.zeros([n, M, N])+1j*np.zeros([n, M, N])
+P = Q[:, pixel_x, pixel_y] + 1j*U[:,pixel_x, pixel_y]
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
 #FISTA arguments
 soft_t = 0.00001
 
-pixels = 0
-for i in range(0,M):
-    for j in range(0,N):
-        if i<=cutoff_params[1] and i>cutoff_params[0] and j<=cutoff_params[3] and j>cutoff_params[2]:
-            pixels = pixels+1
+F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+F = FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
 
-iterated_pixels = 0
-#Call parallel function
-ids = np.arange(0,nprocs)
-rows_per_thread = int(M/nprocs)
-chunks_start = ids*rows_per_thread
-chunks_end = ids*rows_per_thread + rows_per_thread
-jobs = []
-lock = multiprocessing.Lock()
-print("Going to parallel")
-for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, iterated_pixels, pixels, cutoff_params, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
-    jobs.append(process)
-    process.start()
+f, axarr = plt.subplots(1, 3)
 
-# Ensure all of the processes have finished
+axarr[0].plot(lambda2, np.abs(P), 'k-')
+axarr[0].plot(lambda2, P.real, 'k-.')
+axarr[0].plot(lambda2, P.imag, 'k--')
+#axarr[0,0].set_ylim([min_y, max_y])
+#axarr[0,0].set_xlim([-200, 200])
+axarr[0].set(title='P')
 
-for j in jobs:
-    j.join()
-    print("Process ", j, " ended")
-    
-    
-writeCube(F.real, output_file+"_real.fits")
-writeCube(F.imag, output_file+"_imag.fits")
+axarr[1].plot(phi, np.abs(F), 'k-')
+axarr[1].plot(phi, F.real, 'k-.')
+axarr[1].plot(phi, F.imag, 'k--')
+#axarr[0,0].set_ylim([min_y, max_y])
+#axarr[0,1].set_xlim([-200, 200])
+axarr[1].set(title='F')
+
+
+axarr[2].plot(phi, np.abs(F_dirty), 'k-')
+axarr[2].plot(phi, F_dirty.real, 'k-.')
+axarr[2].plot(phi, F_dirty.imag, 'k--')
+#axarr[0,0].set_ylim([min_y, max_y])
+#axarr[0,1].set_xlim([-200, 200])
+axarr[2].set(title='Dirty F')
+
+plt.show(block=True)
