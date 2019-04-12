@@ -191,9 +191,9 @@ for z in range(0,nprocs):
     process.start()
 
 # Ensure all of the processes have finished
-for j in jobs:
-    j.join()
-    print("Process ", j.pid, " ended - Start: ",chunks_start[j.pid], " - End: ", chunks_end[j.pid])
+for j in len(jobs):
+    jobs[j].join()
+    print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
     
 print("Writing solution to FITS")
 writeCube(F.real, output_file+"_real.fits")
