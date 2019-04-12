@@ -191,7 +191,7 @@ for z in range(0,nprocs):
     process.start()
 
 # Ensure all of the processes have finished
-for j in len(jobs):
+for j in range(0, nprocs):
     jobs[j].join()
     print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
     
