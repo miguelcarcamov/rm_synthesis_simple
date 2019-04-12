@@ -196,5 +196,6 @@ for j in range(0, nprocs):
     print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
     
 print("Writing solution to FITS")
+writeCube(np.abs(F), output_file+"_abs.fits")
 writeCube(F.real, output_file+"_real.fits")
 writeCube(F.imag, output_file+"_imag.fits")
