@@ -80,14 +80,20 @@ def readCube(path, M, N, m, stokes):
 
 def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
-    hdu_new.writeto(output)
+    hdu_new.writeto(output, overwrite=True)
     
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(j_min, j_max):
             F[:,i,j] = FISTA_Mix_General(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
-    
+
+def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
+    for i in range(chunks_start[z], chunks_end[z]):
+        for j in range(j_min, j_max):
+            F[:,i,j] = form_F_dirty(K, P[:,i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
+        #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
+        
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
 path_Q = sys.argv[3]
@@ -120,8 +126,8 @@ temp = np.int(np.floor(2*phi_max/phi_r))
 n = int(temp-np.mod(temp,32))
 
 phi_r = 2*phi_max/n;
+print("Phi_r: ", phi_r)
 phi = phi_r*np.arange(-(n/2),(n/2), 1)
-
 # Get information from header
 header = readHeader(fits_file)
 M = header[0]
@@ -186,7 +192,7 @@ jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelDirty, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
