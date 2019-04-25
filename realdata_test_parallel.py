@@ -21,19 +21,8 @@ def readHeader(fitsfile):
     f_filename = fitsfile
     i_image = fits.open(f_filename)
     i_header = i_image[0].header
-    M = i_header['NAXIS1']
-    N = i_header['NAXIS2']
-    bmaj = i_header['BMAJ']
-    bmin = i_header['BMIN']
-    bpa = i_header['BPA']
-    cdelt1 = i_header['CDELT1']
-    cdelt2 = i_header['CDELT2']
-    ra = i_header['CRVAL1']
-    dec = i_header['CRVAL2']
-    crpix1 = i_header['CRPIX1']
-    crpix2 = i_header['CRPIX2']
-    
-    return [M,N, bmaj, bmin, bpa, cdelt1, cdelt2, ra, dec, crpix1, crpix2]
+
+    return i_header
     
 def getFileNFrequencies(filename):
     f_filename = filename
@@ -78,8 +67,14 @@ def readCube(path, M, N, m, stokes):
         
     return cube
 
-def writeCube(cube, output):
-    hdu_new = fits.PrimaryHDU(cube)
+def writeCube(cube, output, nphi, phi, dphi, header):
+    header['NAXIS3'] = (nphi, 'Length of Faraday depth axis')
+    header['CTYPE3'] = 'Phi'
+    header['CDELT3'] = dphi
+    header['CUNIT3'] = 'rad/m/m'
+    header['CRVAL3'] = phi[0]
+    #header['CRVAL3'] = 'Phi
+    hdu_new = fits.PrimaryHDU(cube, header)
     hdu_new.writeto(output, overwrite=True)
     
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
@@ -106,11 +101,14 @@ niter = int(sys.argv[8])
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
 lambda2 = (c/freqs)**2
+lambda2 = np.flipud(lambda2)
 
-w2_min = lambda2[m-1]
-w2_max = lambda2[0]
-
+w2_min = lambda2[0]
+w2_max = lambda2[m-1]
+print("l2 min: ", w2_min)
+print("l2 max: ", w2_max)
 lambda2_ref = (w2_max+w2_min)/2.0
+print("Lambda2 ref: ", lambda2_ref)
 delta_lambda2 = (w2_max-w2_min)/(m-1)
 
 delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
@@ -130,21 +128,23 @@ print("Phi_r: ", phi_r)
 phi = phi_r*np.arange(-(n/2),(n/2), 1)
 # Get information from header
 header = readHeader(fits_file)
-M = header[0]
-N = header[1]
-dx = -1.0*header[5]*RPDEG #to radians
-dy = header[6]*RPDEG #to radians
-ra = header[7]*RPDEG #to radians
-dec= header[8]*RPDEG #to radians
-crpix1 = header[9] #center in pixels
-crpix2 = header[10] #center in pixels
+M = header['NAXIS1']
+N = header['NAXIS2']
+dx = -1.0*header['CDELT1']*RPDEG #to radians
+dy = header['CDELT2']*RPDEG #to radians
+ra = header['CRVAL1']*RPDEG #to radians
+dec= header['CRVAL2']*RPDEG #to radians
+crpix1 = header['CRPIX1'] #center in pixels
+crpix2 = header['CRPIX2'] #center in pixels
 # Get cutoff and RM-CLEAN params
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 print("Reading FITS files")
 Q = readCube(path_Q, M, N, m, "Q")
+Q = np.flipud(Q)
 U = readCube(path_U, M, N, m, "U")
+U = np.flipud(U)
 # Build P, F, W and K
 P = Q + 1j*U
 
@@ -202,6 +202,7 @@ for j in range(0, nprocs):
     print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
     
 print("Writing solution to FITS")
-writeCube(np.abs(F), output_file+"_abs.fits")
-writeCube(F.real, output_file+"_real.fits")
-writeCube(F.imag, output_file+"_imag.fits")
+
+writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, header)
+writeCube(F.real, output_file+"_real.fits", n, phi, phi_r, header)
+writeCube(F.imag, output_file+"_imag.fits", n, phi, phi_r, header)

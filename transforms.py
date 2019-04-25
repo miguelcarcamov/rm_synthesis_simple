@@ -11,7 +11,7 @@ import numpy as np
 def form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n):
     F = np.zeros(n) + 1j*np.zeros(n)
     for i in range(0,n):
-        F[i] = K * np.sum(P_meas*np.exp(-2j*phi[i]*lambda2))
+        F[i] = K * np.sum(P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
     return F
 
 def form_F_li(P_meas, phi, lambda2, lambda2_ref, n):
