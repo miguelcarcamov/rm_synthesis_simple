@@ -62,11 +62,11 @@ F_dirty = form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n)
 soft_thresholds = [0.5, 0.001, 1.0]
 iterations = [5000, 1000, 1000]
 
-F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_thresholds[0], iterations[0])
-F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_thresholds[0], iterations[0])
-F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_thresholds[1], iterations[1])
-F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, lambda2_ref, m, n, soft_thresholds[2], iterations[2])
-F_recon_rmclean = RM_CLEAN(P_meas, R, W, K, phi, lambda2, lambda2_ref, m, n, 11000, 0.1, 1e-12, cross_corr=True)
+F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
+F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
+F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], iterations[1])
+F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], iterations[2])
+F_recon_rmclean = RM_CLEAN(P_meas, R, W, K, phi, lambda2, 0, m, n, 11000, 0.1, 1e-12, cross_corr=True)
 
 f, axarr = plt.subplots(2, 3)
 

@@ -11,20 +11,20 @@ import numpy as np
 def form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n):
     F = np.zeros(n) + 1j*np.zeros(n)
     for i in range(0,n):
-        F[i] = K * np.sum(P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
-    return F
+        F[i] = np.sum(P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
+    return K*F
 
-def form_F_li(P_meas, phi, lambda2, lambda2_ref, n):
-    F = np.zeros(n) + 1j*np.zeros(n)
-    for i in range(0,n):
-        F[i] = np.sum(P_meas*np.exp(-2j*phi[i]*lambda2))
-    return F/n
-
-def form_P_meas(W, F, phi, lambda2, m):
+def form_P_meas(W, F, phi, lambda2, lambda2_ref, m):
     P = np.zeros(m) + 1j*np.zeros(m)
     for i in range(0,m):
-        P[i] = W[i] * np.sum(F*np.exp(2j*phi*lambda2[i]))
+        P[i] = W[i] * np.sum(F*np.exp(2j*phi*(lambda2[i]-lambda2_ref)))
     return P
+
+def form_F_li(K, P_meas, phi, lambda2, lambda2_ref, n):
+    F = np.zeros(n) + 1j*np.zeros(n)
+    for i in range(0,n):
+        F[i] = np.sum(P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
+    return F/n
 
 def form_P(F, phi, lambda2, m):
     P = np.zeros(m) + 1j*np.zeros(m)
@@ -35,5 +35,5 @@ def form_P(F, phi, lambda2, m):
 def form_R(K, W, phi, lambda2, lambda2_ref, n):
     R = np.zeros(n) + 1j*np.zeros(n)
     for i in range(0,n):
-        R[i] = K * np.sum(W*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
-    return R
+        R[i] = np.sum(W*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
+    return K*R

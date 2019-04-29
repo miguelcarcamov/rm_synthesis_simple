@@ -104,17 +104,18 @@ pixel_y = int(sys.argv[10])
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
 lambda2 = (c/freqs)**2
+lambda2 = np.flipud(lambda2)
 
-w2_min = lambda2[m-1]
-w2_max = lambda2[0]
+w2_min = lambda2[0]
+w2_max = lambda2[m-1]
 
 lambda2_ref = (w2_max+w2_min)/2.0
 delta_lambda2 = (w2_max-w2_min)/(m-1)
 
 delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
-print("delta phi: ", delta_phi)
 
 phi_max = np.sqrt(3)/(delta_lambda2)
+
 
 times = 4
 
@@ -124,6 +125,7 @@ temp = np.int(np.floor(2*phi_max/phi_r))
 n = temp-np.mod(temp,32)
 
 phi_r = 2*phi_max/n;
+
 phi = phi_r*np.arange(-(n/2),(n/2), 1)
 
 # Get information from header
@@ -142,7 +144,9 @@ clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 print("Reading FITS files")
 Q = readCube(path_Q, M, N, m, "Q")
+Q = np.flipud(Q)
 U = readCube(path_U, M, N, m, "U")
+U = np.flipud(U)
 # Build P, F, W and K
 P = Q[:, pixel_x, pixel_y] + 1j*U[:,pixel_x, pixel_y]
 W = np.ones(m)
@@ -151,10 +155,12 @@ K = 1.0/np.sum(W)
 #FISTA arguments
 soft_t = 0.00001
 
-F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-F = FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
 
-f, axarr = plt.subplots(1, 3)
+F_dirty = form_F_li(K, P, phi, lambda2, lambda2_ref, n)
+P_back = form_P_meas(W, F_dirty, phi, lambda2,lambda2_ref, m)
+F_recon = K*n*FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
+
+f, axarr = plt.subplots(1, 4)
 
 axarr[0].plot(lambda2, np.abs(P), 'k-')
 axarr[0].plot(lambda2, P.real, 'k-.')
@@ -163,19 +169,26 @@ axarr[0].plot(lambda2, P.imag, 'k--')
 #axarr[0,0].set_xlim([-200, 200])
 axarr[0].set(title='P')
 
-axarr[1].plot(phi, np.abs(F), 'k-')
-axarr[1].plot(phi, F.real, 'k-.')
-axarr[1].plot(phi, F.imag, 'k--')
+axarr[2].plot(lambda2, np.abs(P_back), 'k-')
+axarr[2].plot(lambda2, P_back.real, 'k-.')
+axarr[2].plot(lambda2, P_back.imag, 'k--')
 #axarr[0,0].set_ylim([min_y, max_y])
 #axarr[0,1].set_xlim([-200, 200])
-axarr[1].set(title='F')
+axarr[2].set(title='P_back')
 
 
-axarr[2].plot(phi, np.abs(F_dirty), 'k-')
-axarr[2].plot(phi, F_dirty.real, 'k-.')
-axarr[2].plot(phi, F_dirty.imag, 'k--')
+axarr[1].plot(phi, np.abs(F_dirty), 'k-')
+axarr[1].plot(phi, F_dirty.real, 'k-.')
+axarr[1].plot(phi, F_dirty.imag, 'k--')
 #axarr[0,0].set_ylim([min_y, max_y])
 #axarr[0,1].set_xlim([-200, 200])
-axarr[2].set(title='Dirty F')
+axarr[1].set(title='Dirty F')
+
+axarr[3].plot(phi, np.abs(F_recon), 'k-')
+axarr[3].plot(phi, F_recon.real, 'k-.')
+axarr[3].plot(phi, F_recon.imag, 'k--')
+#axarr[0,0].set_ylim([min_y, max_y])
+#axarr[0,1].set_xlim([-200, 200])
+axarr[3].set(title='Reconstructed FISTA')
 
 plt.show(block=True)
