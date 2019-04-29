@@ -67,8 +67,8 @@ for i in range(0,len(sources_F)):
 
 P = form_P(F, phi, lambda2, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
-P_meas = form_P_meas(W, F, phi, lambda2, m)
-F_dirty = form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n)
+P_meas = form_P_meas(W, F, phi, lambda2, 0, m)
+F_dirty = form_F_dirty(K, P_meas, phi, lambda2, 0, n)
 
 soft_thresholds = [0.001, 0.8, 1.0]
 iterations = [1000, 5000, 1000]

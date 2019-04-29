@@ -54,15 +54,14 @@ for i in range(0,len(sources_F)):
     ps_idx = (np.abs(phi-pos_F[i])).argmin()
     F[ps_idx] = sources_F[i]
 
-P = form_P(F, phi, lambda2, m)
+P = form_P(F, phi, lambda2, 0, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
-P_meas = form_P_meas(W, F, phi, lambda2, m)
-F_dirty = form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n)
+P_meas = form_P_meas(W, F, phi, lambda2, 0, m)
+F_dirty = form_F_dirty(K, P_meas, phi, lambda2, 0, n)
 
-soft_thresholds = [0.5, 0.001, 1.0]
+soft_thresholds = [0.2, 0.001, 1.0]
 iterations = [5000, 1000, 1000]
 
-F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
 F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
 F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], iterations[1])
 F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], iterations[2])

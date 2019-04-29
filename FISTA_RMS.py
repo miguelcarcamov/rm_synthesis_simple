@@ -25,7 +25,7 @@ def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterati
             comb = X
             F_comb = form_P_meas(W, comb, phi, lambda2, lambda2_ref, m)
             D = F_comb - P
-            comb = comb - form_F_li(D, phi, lambda2, lambda2_ref, n)
+            comb = comb - form_F_li(K, D, phi, lambda2, lambda2_ref, n)
             
             Xreal = comb.real
             Ximag = comb.imag
@@ -54,7 +54,7 @@ def FISTA_Thick(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterat
             comb = X
             F_comb = form_P_meas(W, comb, phi, lambda2, lambda2_ref, m)
             D = F_comb - P
-            comb = comb - form_F_li(D, phi, lambda2, lambda2_ref, n)
+            comb = comb - form_F_li(K, D, phi, lambda2, lambda2_ref, n)
             
             A_re, B_re, C_re, D_re = pywt.wavedec(comb.real, db8, level=3, mode='zpd')
             A_im, B_im, C_im, D_im = pywt.wavedec(comb.imag, db8, level=3, mode='zpd')
@@ -85,7 +85,7 @@ def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iteratio
             #Thin structures
             F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
             residual = P - F_comb
-            F_thin = F_thin + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
             Xreal = F_thin.real
             Ximag = F_thin.imag
             X_tempreal = softThreshold(Xreal, soft_threshold)
@@ -93,9 +93,9 @@ def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iteratio
             F_thin = X_tempreal + 1j* X_tempimag
             
             #Thick structures
-            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, m)
+            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
             residual = P - F_comb
-            F_thick = F_thick + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
             
             A_re, B_re, C_re, D_re = pywt.wavedec(F_thick.real, db8, level=3, mode='zpd')
             A_im, B_im, C_im, D_im = pywt.wavedec(F_thick.imag, db8, level=3, mode='zpd')
@@ -159,7 +159,7 @@ def FISTA_Mix2(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterati
             #Thin structures
             F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
             residual = P - F_comb
-            F_thin = F_thin + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
             Xreal = F_thin.real
             Ximag = F_thin.imag
             X_tempreal = softThreshold(Xreal, soft_threshold)
@@ -169,7 +169,7 @@ def FISTA_Mix2(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterati
             #Thick structures
             F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
             residual = P - F_comb
-            F_thick = F_thick + form_F_li(residual, phi, lambda2, lambda2_ref, n)
+            F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
             
             A_re, B_re, C_re, D_re = pywt.wavedec(F_thick.real, db8, level=3, mode='zpd')
             A_im, B_im, C_im, D_im = pywt.wavedec(F_thick.imag, db8, level=3, mode='zpd')

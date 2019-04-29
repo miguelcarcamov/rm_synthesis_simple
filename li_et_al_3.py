@@ -79,8 +79,8 @@ F[ps_idx_1:ps_idx_2] = sources_F3
 
 P = form_P(F, phi, lambda2, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
-P_meas = form_P_meas(W, F, phi, lambda2, m)
-F_dirty = form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n)
+P_meas = form_P_meas(W, F, phi, lambda2, 0, m)
+F_dirty = form_F_dirty(K, P_meas, phi, lambda2, 0, n)
 
 soft_thresholds = [0.5, 0.8, 0.1]
 iterations = [1000, 1000, 5000]
