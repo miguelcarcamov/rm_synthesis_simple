@@ -156,11 +156,11 @@ K = 1.0/np.sum(W)
 soft_t = 0.00001
 
 
-F_dirty = form_F_li(K, P, phi, lambda2, lambda2_ref, n)
-P_back = form_P_meas(W, F_dirty, phi, lambda2,lambda2_ref, m)
+F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+#P_back = form_P_meas(W, F_dirty, phi, lambda2,lambda2_ref, m)
 F_recon = K*n*FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
 
-f, axarr = plt.subplots(1, 4)
+f, axarr = plt.subplots(1, 3)
 
 axarr[0].plot(lambda2, np.abs(P), 'k-')
 axarr[0].plot(lambda2, P.real, 'k-.')
@@ -169,14 +169,6 @@ axarr[0].plot(lambda2, P.imag, 'k--')
 #axarr[0,0].set_xlim([-200, 200])
 axarr[0].set(title='P')
 
-axarr[2].plot(lambda2, np.abs(P_back), 'k-')
-axarr[2].plot(lambda2, P_back.real, 'k-.')
-axarr[2].plot(lambda2, P_back.imag, 'k--')
-#axarr[0,0].set_ylim([min_y, max_y])
-#axarr[0,1].set_xlim([-200, 200])
-axarr[2].set(title='P_back')
-
-
 axarr[1].plot(phi, np.abs(F_dirty), 'k-')
 axarr[1].plot(phi, F_dirty.real, 'k-.')
 axarr[1].plot(phi, F_dirty.imag, 'k--')
@@ -184,11 +176,11 @@ axarr[1].plot(phi, F_dirty.imag, 'k--')
 #axarr[0,1].set_xlim([-200, 200])
 axarr[1].set(title='Dirty F')
 
-axarr[3].plot(phi, np.abs(F_recon), 'k-')
-axarr[3].plot(phi, F_recon.real, 'k-.')
-axarr[3].plot(phi, F_recon.imag, 'k--')
+axarr[2].plot(phi, np.abs(F_recon), 'k-')
+axarr[2].plot(phi, F_recon.real, 'k-.')
+axarr[2].plot(phi, F_recon.imag, 'k--')
 #axarr[0,0].set_ylim([min_y, max_y])
 #axarr[0,1].set_xlim([-200, 200])
-axarr[3].set(title='Reconstructed FISTA')
+axarr[2].set(title='Reconstructed FISTA')
 
 plt.show(block=True)
