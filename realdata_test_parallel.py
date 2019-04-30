@@ -192,7 +192,7 @@ jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelDirty, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
