@@ -19,9 +19,10 @@ c = 2.99792458e8
 
 def readHeader(fitsfile):
     f_filename = fitsfile
-    i_image = fits.open(f_filename)[0]
-    i_header = i_image.header
-
+    i_image = fits.open(f_filename)
+    i_header = i_image[0].header
+    
+    i_image.close()
     return i_header
     
 def getFileNFrequencies(filename):
@@ -64,20 +65,22 @@ def readCube_path(path, M, N, m, stokes):
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
         cube[i] = data
-        
+        i_image.close()
     return cube
 
 def readCube(file1, file2, M, N, m):
     Q = np.zeros([m, M, N])
     U = np.zeros([m, M, N])
     
-    hdu1 = fits.open(file1)[0]
-    hdu2 = fits.open(file2)[0]
+    hdu1 = fits.open(file1)
+    hdu2 = fits.open(file2)
     
     for i in range(m):
-        Q[i, :, :] = hdu1.data[i,:,:]
-        U[i, :, :] = hdu2.data[i,:,:]
+        Q[i, :, :] = hdu1[0].data[i,:,:]
+        U[i, :, :] = hdu2[0].data[i,:,:]
     
+    hdu1.close()
+    hdu2.close()
     return Q,U
 def writeCube(cube, output, nphi, phi, dphi, header):
     header['NAXIS3'] = (nphi, 'Length of Faraday depth axis')
@@ -148,6 +151,10 @@ phi = phi_r*np.arange(-(n/2),(n/2), 1)
 header = readHeader(fits_file)
 M = header['NAXIS1']
 N = header['NAXIS2']
+print("Image size: ", M, "x", N)
+print("Frecuencies: ", m)
+print("Float Memory for Q and U: ", 2*M*N*m*4/(2**30), "GB")
+print("Float Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
 #dx = -1.0*header['CDELT1']*RPDEG #to radians
 #dy = header['CDELT2']*RPDEG #to radians
 #ra = header['CRVAL1']*RPDEG #to radians
