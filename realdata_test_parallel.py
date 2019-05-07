@@ -19,8 +19,8 @@ c = 2.99792458e8
 
 def readHeader(fitsfile):
     f_filename = fitsfile
-    i_image = fits.open(f_filename)
-    i_header = i_image[0].header
+    i_image = fits.open(f_filename)[0]
+    i_header = i_image.header
 
     return i_header
     
@@ -56,7 +56,7 @@ def getFileData(filename):
     
     return clean_params, cutoff_params
     
-def readCube(path, M, N, m, stokes):
+def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
@@ -67,6 +67,18 @@ def readCube(path, M, N, m, stokes):
         
     return cube
 
+def readCube(file1, file2, M, N, m):
+    Q = np.zeros([m, M, N])
+    U = np.zeros([m, M, N])
+    
+    hdu1 = fits.open(file1)[0]
+    hdu2 = fits.open(file2)[0]
+    
+    for i in range(m):
+        Q[i, :, :] = hdu1.data[i,:,:]
+        U[i, :, :] = hdu2.data[i,:,:]
+    
+    return Q,U
 def writeCube(cube, output, nphi, phi, dphi, header):
     header['NAXIS3'] = (nphi, 'Length of Faraday depth axis')
     header['CTYPE3'] = 'Phi'
@@ -76,6 +88,11 @@ def writeCube(cube, output, nphi, phi, dphi, header):
     #header['CRVAL3'] = 'Phi
     hdu_new = fits.PrimaryHDU(cube, header)
     hdu_new.writeto(output, overwrite=True)
+
+def ParallelFISTAThin(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
+    for i in range(chunks_start[z], chunks_end[z]):
+        for j in range(j_min, j_max):
+            F[:,i,j] = K*n*FISTA_Thin(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
     
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
@@ -97,6 +114,7 @@ fits_file = sys.argv[5]
 output_file = sys.argv[6]
 nprocs = int(sys.argv[7])
 niter = int(sys.argv[8])
+isCube = sys.argv[9]
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
@@ -130,21 +148,24 @@ phi = phi_r*np.arange(-(n/2),(n/2), 1)
 header = readHeader(fits_file)
 M = header['NAXIS1']
 N = header['NAXIS2']
-dx = -1.0*header['CDELT1']*RPDEG #to radians
-dy = header['CDELT2']*RPDEG #to radians
-ra = header['CRVAL1']*RPDEG #to radians
-dec= header['CRVAL2']*RPDEG #to radians
-crpix1 = header['CRPIX1'] #center in pixels
-crpix2 = header['CRPIX2'] #center in pixels
+#dx = -1.0*header['CDELT1']*RPDEG #to radians
+#dy = header['CDELT2']*RPDEG #to radians
+#ra = header['CRVAL1']*RPDEG #to radians
+#dec= header['CRVAL2']*RPDEG #to radians
+#crpix1 = header['CRPIX1'] #center in pixels
+#crpix2 = header['CRPIX2'] #center in pixels
 # Get cutoff and RM-CLEAN params
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 print("Reading FITS files")
-Q = readCube(path_Q, M, N, m, "Q")
-Q = np.flipud(Q)
-U = readCube(path_U, M, N, m, "U")
-U = np.flipud(U)
+if isCube:
+    Q,U = readCube(path_Q, path_U, M, N, m)
+else:
+    Q = readCube(path_Q, M, N, m, "Q")
+    Q = np.flipud(Q)
+    U = readCube(path_U, M, N, m, "U")
+    U = np.flipud(U)
 # Build P, F, W and K
 P = Q + 1j*U
 
@@ -192,7 +213,7 @@ jobs = []
 lock = multiprocessing.Lock()
 print("Going to parallel")
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
+    process = multiprocessing.Process(target=ParallelFISTAThin, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
     jobs.append(process)
     process.start()
 
