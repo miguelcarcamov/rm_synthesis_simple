@@ -154,7 +154,7 @@ N = header['NAXIS2']
 print("Image size: ", M, "x", N)
 print("Frecuencies: ", m)
 print("Float Memory for Q and U: ", 2*M*N*m*4/(2**30), "GB")
-print("Float Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
+print("Double Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
 #dx = -1.0*header['CDELT1']*RPDEG #to radians
 #dy = header['CDELT2']*RPDEG #to radians
 #ra = header['CRVAL1']*RPDEG #to radians
