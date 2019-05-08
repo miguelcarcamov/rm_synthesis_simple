@@ -179,8 +179,11 @@ for i in range(imin, imax):
         x = delayed(FISTA_Thin)(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
         results.append(x)
 
-F = results.compute()
+F = results.compute(scheduler='processes', num_workers=nprocs)
 
+time_taken = time()-start
+print ('Process took', time_taken, 'seconds')
+print("Writing solution to FITS")
 F = np.reshape(F, (n, M, N))
 
 writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
