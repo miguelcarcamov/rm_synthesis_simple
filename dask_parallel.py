@@ -15,6 +15,7 @@ from transforms import *
 from FISTA_RMS import *
 from rm_clean import *
 from time import time
+from dask import delayed
 
 RPDEG = (np.pi/180.0) #Radians per degree
 c = 2.99792458e8
@@ -61,13 +62,13 @@ def getFileData(filename):
     return clean_params, cutoff_params
     
 def readCube_path(path, M, N, m, stokes):
-    cube = np.zeros([m, M, N])
+    cube = np.zeros([M, N, m])
     for i in range(0,m):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
         print("Reading FITS File: ", f_filename)
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
-        cube[i] = data
+        cube[:,:,i] = data
         i_image.close()
     return cube
 
@@ -86,32 +87,16 @@ def readCube(file1, file2, M, N, m):
     hdu2.close()
     return Q,U
 
-def writeCube(cube, output, nphi, phi, dphi, M, N, header):
+def writeCube(cube, output, nphi, phi, dphi, header):
     header['NAXIS3'] = (nphi, 'Length of Faraday depth axis')
     header['CTYPE3'] = 'Phi'
     header['CDELT3'] = dphi
     header['CUNIT3'] = 'rad/m/m'
     header['CRVAL3'] = phi[0]
     #header['CRVAL3'] = 'Phi
+    #cube = np.reshape(cube, (nphi, M, N))
     hdu_new = fits.PrimaryHDU(cube, header)
     hdu_new.writeto(output, overwrite=True)
-
-def ParallelFISTAThin(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
-    for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(j_min, j_max):
-            F[i,j] = K*n*FISTA_Thin(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
-    
-def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
-    for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(j_min, j_max):
-            F[i,j] = K*n*FISTA_Mix_General(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
-        #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
-
-def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
-    for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(j_min, j_max):
-            F[i,j] = form_F_dirty(K, P[i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
-        #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
         
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
@@ -162,12 +147,6 @@ print("Image size: ", M, "x", N)
 print("Frecuencies: ", m)
 print("Float Memory for Q and U: ", 2*M*N*m*4/(2**30), "GB")
 print("Double Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
-#dx = -1.0*header['CDELT1']*RPDEG #to radians
-#dy = header['CDELT2']*RPDEG #to radians
-#ra = header['CRVAL1']*RPDEG #to radians
-#dec= header['CRVAL2']*RPDEG #to radians
-#crpix1 = header['CRPIX1'] #center in pixels
-#crpix2 = header['CRPIX2'] #center in pixels
 # Get cutoff and RM-CLEAN params
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
@@ -182,11 +161,6 @@ else:
     U = np.flipud(U)
 # Build P, F, W and K
 P = Q + 1j*U
-
-F_base = multiprocessing.Array(ctypes.c_double, M*N*2*n)
-F = np.ctypeslib.as_array(F_base.get_obj())
-F = F.view(np.complex128).reshape(M, N, n)
-
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
@@ -197,49 +171,16 @@ i_min = cutoff_params[0]
 i_max = cutoff_params[1]
 j_min = cutoff_params[2]
 j_max = cutoff_params[3]
-pixels = 0
-for i in range(i_min,i_max):
-    for j in range(j_min,j_max):
-            pixels = pixels+1
 
-ids = np.arange(i_min,i_max)
-items = len(ids)
-print("Total pixels: ", items)
-print("Min ra: ", j_min)
-print("Max ra: ", j_max)
-print("Min dec: ", i_min)
-print("Max dec: ", i_max)
-iterated_pixels = 0
-#Call parallel function
-
-id_procs = np.arange(0, nprocs)
-chunk_size = int(items/nprocs)
-print("Chunk size: ", chunk_size)
-rest_chunk = items % nprocs
-print("Rest: ", rest_chunk)
-chunks_start = ids[id_procs*chunk_size]
-print(chunks_start)
-chunks_end = ids[id_procs*chunk_size] + chunk_size
-chunks_end[nprocs-1] = chunks_end[nprocs-1] + rest_chunk
-print(chunks_end)
-
-jobs = []
-lock = multiprocessing.Lock()
-print("Going to parallel")
 start = time()
-for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTAThin, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N))
-    jobs.append(process)
-    process.start()
+results = []
+for i in range(imin, imax):
+    for j in range(jmin, jmax):
+        x = delayed(FISTA_Thin)(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
+        results.append(x)
 
-# Ensure all of the processes have finished
-for j in range(0, nprocs):
-    jobs[j].join()
-    print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
+F = results.compute()
 
-time_taken = time()-start
-print ('Process took', time_taken, 'seconds')
-print("Writing solution to FITS")
 F = np.reshape(F, (n, M, N))
 
 writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
