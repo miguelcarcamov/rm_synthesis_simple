@@ -122,6 +122,7 @@ output_file = sys.argv[6]
 nprocs = int(sys.argv[7])
 niter = int(sys.argv[8])
 isCube = sys.argv[9]
+soft_t = float(sys.argv[10])
 if nprocs < 1 or nprocs > multiprocessing.cpu_count():
     print("You cannot use more than", multiprocessing.cpu_count(), "processors and less than 1")
     sys.exit(-1)
@@ -189,9 +190,6 @@ F = F.view(np.complex128).reshape(M, N, n)
 
 W = np.ones(m)
 K = 1.0/np.sum(W)
-
-#FISTA arguments
-soft_t = 0.00001
 
 i_min = cutoff_params[0]
 i_max = cutoff_params[1]
