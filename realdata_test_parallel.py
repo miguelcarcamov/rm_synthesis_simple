@@ -176,10 +176,12 @@ clean_params, cutoff_params = getFileData(params_file)
 print("Reading FITS files")
 if isCube:
     Q,U = readCube(path_Q, path_U, M, N, m)
-else:
-    Q = readCube(path_Q, M, N, m, "Q")
     Q = np.flipud(Q)
-    U = readCube(path_U, M, N, m, "U")
+    U = np.flipud(U)
+else:
+    Q = readCube_path(path_Q, M, N, m, "Q")
+    Q = np.flipud(Q)
+    U = readCube_path(path_U, M, N, m, "U")
     U = np.flipud(U)
 # Build P, F, W and K
 P = Q + 1j*U
