@@ -75,7 +75,7 @@ def getFileData(filename):
     
     return clean_params, cutoff_params
     
-def readCube(path, M, N, m, stokes):
+def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
@@ -83,12 +83,33 @@ def readCube(path, M, N, m, stokes):
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
         cube[i] = data
-        
+        i_image.close()
     return cube
+
+def readCube(file1, file2, M, N, m):
+    Q = np.zeros([M, N, m])
+    U = np.zeros([M, N, m])
+    
+    hdu1 = fits.open(file1)
+    hdu2 = fits.open(file2)
+    
+    for i in range(m):
+        Q[:, :, i] = hdu1[0].data[i,:,:]
+        U[:, :, i] = hdu2[0].data[i,:,:]
+    
+    hdu1.close()
+    hdu2.close()
+    return Q,U
 
 def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
     hdu_new.writeto(output)
+    
+def find_pixel(M, N, contiguous_id):
+    for i in range(M):
+        for j in range(N):
+            if(contiguous_id == N*i+j):
+                return i,j
         
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
@@ -96,10 +117,11 @@ path_Q = sys.argv[3]
 path_U = sys.argv[4]
 fits_file = sys.argv[5]
 output_file = sys.argv[6]
-nprocs = int(sys.argv[7])
-niter = int(sys.argv[8])
-pixel_x = int(sys.argv[9])
-pixel_y = int(sys.argv[10])
+niter = int(sys.argv[7])
+pixel_id = int(sys.argv[8])
+isCube = sys.argv[9]
+soft_t = float(sys.argv[10])
+plotOn = sys.argv[11]
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
@@ -143,44 +165,49 @@ print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 print("Reading FITS files")
-Q = readCube(path_Q, M, N, m, "Q")
-Q = np.flipud(Q)
-U = readCube(path_U, M, N, m, "U")
-U = np.flipud(U)
+if isCube:
+    Q,U = readCube(path_Q, path_U, M, N, m)
+    Q = np.flipud(Q)
+    U = np.flipud(U)
+else:
+    Q = readCube_path(path_Q, M, N, m, "Q")
+    Q = np.flipud(Q)
+    U = readCube_path(path_U, M, N, m, "U")
+    U = np.flipud(U)
 # Build P, F, W and K
+pixel_x, pixel_y = find_pixel(M, N, pixel_id)
 P = Q[:, pixel_x, pixel_y] + 1j*U[:,pixel_x, pixel_y]
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
-#FISTA arguments
-soft_t = 0.00001
-
-
 F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
 #P_back = form_P_meas(W, F_dirty, phi, lambda2,lambda2_ref, m)
-F_recon = K*n*FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
+#F_recon = K*n*FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
+F_recon = K*n*FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
 
-f, axarr = plt.subplots(1, 3)
-
-axarr[0].plot(lambda2, np.abs(P), 'k-')
-axarr[0].plot(lambda2, P.real, 'k-.')
-axarr[0].plot(lambda2, P.imag, 'k--')
-#axarr[0,0].set_ylim([min_y, max_y])
-#axarr[0,0].set_xlim([-200, 200])
-axarr[0].set(title='P')
-
-axarr[1].plot(phi, np.abs(F_dirty), 'k-')
-axarr[1].plot(phi, F_dirty.real, 'k-.')
-axarr[1].plot(phi, F_dirty.imag, 'k--')
-#axarr[0,0].set_ylim([min_y, max_y])
-#axarr[0,1].set_xlim([-200, 200])
-axarr[1].set(title='Dirty F')
-
-axarr[2].plot(phi, np.abs(F_recon), 'k-')
-axarr[2].plot(phi, F_recon.real, 'k-.')
-axarr[2].plot(phi, F_recon.imag, 'k--')
-#axarr[0,0].set_ylim([min_y, max_y])
-#axarr[0,1].set_xlim([-200, 200])
-axarr[2].set(title='Reconstructed FISTA')
-
-plt.show(block=True)
+if plotOn:
+    f, axarr = plt.subplots(1, 3)
+    
+    axarr[0].plot(lambda2, np.abs(P), 'k-')
+    axarr[0].plot(lambda2, P.real, 'k-.')
+    axarr[0].plot(lambda2, P.imag, 'k--')
+    #axarr[0,0].set_ylim([min_y, max_y])
+    #axarr[0,0].set_xlim([-200, 200])
+    axarr[0].set(title='P')
+    
+    axarr[1].plot(phi, np.abs(F_dirty), 'k-')
+    axarr[1].plot(phi, F_dirty.real, 'k-.')
+    axarr[1].plot(phi, F_dirty.imag, 'k--')
+    #axarr[0,0].set_ylim([min_y, max_y])
+    #axarr[0,1].set_xlim([-200, 200])
+    axarr[1].set(title='Dirty F')
+    
+    axarr[2].plot(phi, np.abs(F_recon), 'k-')
+    axarr[2].plot(phi, F_recon.real, 'k-.')
+    axarr[2].plot(phi, F_recon.imag, 'k--')
+    #axarr[0,0].set_ylim([min_y, max_y])
+    #axarr[0,1].set_xlim([-200, 200])
+    axarr[2].set(title='Reconstructed FISTA')
+    
+    #plt.show(block=True)
+np.save(output_file, F_recon)
