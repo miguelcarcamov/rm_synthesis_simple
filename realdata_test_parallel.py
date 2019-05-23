@@ -79,8 +79,8 @@ def readCube(file1, file2, M, N, m):
     hdu2 = fits.open(file2)
     
     for i in range(m):
-        Q[:, :, i] = hdu1[0].data[i,:,:]
-        U[:, :, i] = hdu2[0].data[i,:,:]
+        Q = hdu1[0].data
+        U = hdu2[0].data
     
     hdu1.close()
     hdu2.close()
@@ -99,18 +99,18 @@ def writeCube(cube, output, nphi, phi, dphi, M, N, header):
 def ParallelFISTAThin(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(j_min, j_max):
-            F[i,j] = K*n*FISTA_Thin(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
+            F[:,i,j] = K*n*FISTA_Thin(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
     
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(j_min, j_max):
-            F[i,j] = K*n*FISTA_Mix_General(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
+            F[:,i,j] = K*n*FISTA_Mix_General(P[i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
 def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter, N):
     for i in range(chunks_start[z], chunks_end[z]):
         for j in range(j_min, j_max):
-            F[i,j] = form_F_dirty(K, P[i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
+            F[:,i,j] = form_F_dirty(K, P[i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
         
 freq_text_file = sys.argv[1]
@@ -188,7 +188,7 @@ P = Q + 1j*U
 
 F_base = multiprocessing.Array(ctypes.c_double, M*N*2*n)
 F = np.ctypeslib.as_array(F_base.get_obj())
-F = F.view(np.complex128).reshape(M, N, n)
+F = F.view(np.complex128).reshape(n, M, N)
 
 W = np.ones(m)
 K = 1.0/np.sum(W)
@@ -240,7 +240,6 @@ for j in range(0, nprocs):
 time_taken = time()-start
 print ('Process took', time_taken, 'seconds')
 print("Writing solution to FITS")
-F = np.reshape(F, (n, M, N))
 
 writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
 writeCube(F.real, output_file+"_real.fits", n, phi, phi_r, M, N, header)

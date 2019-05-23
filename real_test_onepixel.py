@@ -31,17 +31,17 @@ def readHeader(fitsfile):
     i_header = i_image[0].header
     M = i_header['NAXIS1']
     N = i_header['NAXIS2']
-    bmaj = i_header['BMAJ']
-    bmin = i_header['BMIN']
-    bpa = i_header['BPA']
-    cdelt1 = i_header['CDELT1']
-    cdelt2 = i_header['CDELT2']
-    ra = i_header['CRVAL1']
-    dec = i_header['CRVAL2']
-    crpix1 = i_header['CRPIX1']
-    crpix2 = i_header['CRPIX2']
+    #bmaj = i_header['BMAJ']
+    #bmin = i_header['BMIN']
+    #bpa = i_header['BPA']
+    #cdelt1 = i_header['CDELT1']
+    #cdelt2 = i_header['CDELT2']
+    #ra = i_header['CRVAL1']
+    #dec = i_header['CRVAL2']
+    #crpix1 = i_header['CRPIX1']
+    #crpix2 = i_header['CRPIX2']
     
-    return [M,N, bmaj, bmin, bpa, cdelt1, cdelt2, ra, dec, crpix1, crpix2]
+    return [M,N]
     
 def getFileNFrequencies(filename):
     f_filename = filename
@@ -87,15 +87,15 @@ def readCube_path(path, M, N, m, stokes):
     return cube
 
 def readCube(file1, file2, M, N, m):
-    Q = np.zeros([M, N, m])
-    U = np.zeros([M, N, m])
+    Q = np.zeros([m, M, N])
+    U = np.zeros([m, M, N])
     
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
     
     for i in range(m):
-        Q[:, :, i] = hdu1[0].data[i,:,:]
-        U[:, :, i] = hdu2[0].data[i,:,:]
+        Q = hdu1[0].data
+        U = hdu2[0].data
     
     hdu1.close()
     hdu2.close()
@@ -131,10 +131,17 @@ lambda2 = np.flipud(lambda2)
 w2_min = lambda2[0]
 w2_max = lambda2[m-1]
 
+print("l2 min: ", w2_min)
+print("l2 max: ", w2_max)
+
 lambda2_ref = (w2_max+w2_min)/2.0
+print("Lambda2 ref: ", lambda2_ref)
+
 delta_lambda2 = (w2_max-w2_min)/(m-1)
 
 delta_phi = 2*np.sqrt(3)/(w2_max-w2_min)
+print("delta phi: ", delta_phi)
+
 
 phi_max = np.sqrt(3)/(delta_lambda2)
 
@@ -147,19 +154,20 @@ temp = np.int(np.floor(2*phi_max/phi_r))
 n = temp-np.mod(temp,32)
 
 phi_r = 2*phi_max/n;
+print("Phi_r: ", phi_r)
 
 phi = phi_r*np.arange(-(n/2),(n/2), 1)
-
+print("Nphi: ", n)
 # Get information from header
 header = readHeader(fits_file)
 M = header[0]
 N = header[1]
-dx = -1.0*header[5]*RPDEG #to radians
-dy = header[6]*RPDEG #to radians
-ra = header[7]*RPDEG #to radians
-dec= header[8]*RPDEG #to radians
-crpix1 = header[9] #center in pixels
-crpix2 = header[10] #center in pixels
+#dx = -1.0*header[5]*RPDEG #to radians
+#dy = header[6]*RPDEG #to radians
+#ra = header[7]*RPDEG #to radians
+#dec= header[8]*RPDEG #to radians
+#crpix1 = header[9] #center in pixels
+#crpix2 = header[10] #center in pixels
 # Get cutoff and RM-CLEAN params
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
@@ -174,16 +182,18 @@ else:
     Q = np.flipud(Q)
     U = readCube_path(path_U, M, N, m, "U")
     U = np.flipud(U)
+
 # Build P, F, W and K
 pixel_x, pixel_y = find_pixel(M, N, pixel_id)
-P = Q[:, pixel_x, pixel_y] + 1j*U[:,pixel_x, pixel_y]
+P = Q[:, pixel_x, pixel_y] + 1j*U[:, pixel_x, pixel_y]
+print(P.shape)
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
 F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
 #P_back = form_P_meas(W, F_dirty, phi, lambda2,lambda2_ref, m)
 #F_recon = K*n*FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
-F_recon = K*n*FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
+F_recon = FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, niter)
 
 if plotOn:
     f, axarr = plt.subplots(1, 3)
@@ -209,5 +219,5 @@ if plotOn:
     #axarr[0,1].set_xlim([-200, 200])
     axarr[2].set(title='Reconstructed FISTA')
     
-    #plt.show(block=True)
+    plt.show(block=True)
 np.save(output_file, F_recon)
