@@ -65,17 +65,16 @@ for i in range(0,len(sources_F)):
     ps_idx_2 = (np.abs(phi-pos_F[i][1])).argmin()
     F[ps_idx_1:ps_idx_2] = sources_F[i]
 
-P = form_P(F, phi, lambda2, m)
+P = form_P(F, phi, lambda2,0, m)
 R = form_R(K, W, phi, lambda2, lambda2_ref, n)
 P_meas = form_P_meas(W, F, phi, lambda2, 0, m)
 F_dirty = form_F_dirty(K, P_meas, phi, lambda2, 0, n)
 
-soft_thresholds = [0.001, 0.8, 1.0]
-iterations = [1000, 5000, 1000]
+soft_thresholds = [0.001, 1.0, 1.0]
 
-F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
-F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], iterations[1])
-F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], iterations[2])
+F_recon_thin = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], 0.01, "Thin")
+F_recon_thick = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], 0.000001, "Thick")
+F_recon_mix = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], 0.0000001, "Both")
 F_recon_rmclean = RM_CLEAN(P_meas, R, W, K, phi, lambda2, 0, m, n, 11000, 0.1, 1e-12, cross_corr=True)
 
 f, axarr = plt.subplots(2, 3)

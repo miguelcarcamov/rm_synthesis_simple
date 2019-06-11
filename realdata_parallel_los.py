@@ -11,6 +11,7 @@ from astropy.io import fits
 import numpy as np
 import sys
 import ctypes
+import matplotlib.pyplot as plt
 from transforms import *
 from FISTA_RMS import *
 from rm_clean import *
@@ -42,23 +43,6 @@ def getFileNFrequencies(filename):
     freqs = np.array(freqs)
     return m, freqs
 
-def getFileData(filename):
-    f_filename = filename
-    array_par = np.loadtxt(f_filename, comments='%', usecols=1)
-    dec_min = int(array_par[0])
-    dec_max = int(array_par[1])
-    ra_min = int(array_par[2])
-    ra_max = int(array_par[3])
-
-    gain = float(array_par[4])
-    niter = int(array_par[5])
-    cutoff = float(array_par[6])
-    threshold = float(array_par[7])
-    
-    cutoff_params = [dec_min, dec_max, ra_min, ra_max]
-    clean_params = [gain, niter, cutoff, threshold]
-    
-    return clean_params, cutoff_params
     
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
@@ -95,30 +79,47 @@ def writeCube(cube, output, nphi, phi, dphi, M, N, header):
     #header['CRVAL3'] = 'Phi
     hdu_new = fits.PrimaryHDU(cube, header)
     hdu_new.writeto(output, overwrite=True)
-    
-def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
+
+def str_to_bool(s):
+    if s == 'True':
+        return True
+    elif s == 'False':
+        return False
+    else:
+        raise ValueError
+
+def find_pixel(M, N, contiguous_id):
+    for i in range(M):
+        for j in range(N):
+            if contiguous_id == N*i+j:
+                return i,j
+  
+def ParallelFISTA(z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
     for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(j_min, j_max):
-            F[:,i,j] = Ultimate_FISTAMix(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
+            F[:,i] = Ultimate_FISTAMix(P[:,i], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
-def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):
+def ParallelDirty(z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):
     for i in range(chunks_start[z], chunks_end[z]):
-        for j in range(j_min, j_max):
-            F[:,i,j] = form_F_dirty(K, P[:,i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
+        F[:,i] = form_F_dirty(K, P[:,i], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
+def test(z, chunks_start, chunks_end):
+    print("I am process ",z, "I work from LOS: ", chunks_start[z], "to ", chunks_end[z])
+    
         
 freq_text_file = sys.argv[1]
-params_file = sys.argv[2]
-path_Q = sys.argv[3]
-path_U = sys.argv[4]
-fits_file = sys.argv[5]
-output_file = sys.argv[6]
-nprocs = int(sys.argv[7])
-isCube = sys.argv[8]
-noise = float(sys.argv[9])
-soft_t = float(sys.argv[10])
-structure = sys.argv[11]
+st_los = int(sys.argv[2])
+end_los = int(sys.argv[3])
+path_Q = sys.argv[4]
+path_U = sys.argv[5]
+fits_file = sys.argv[6]
+path_output = sys.argv[7]
+nprocs = int(sys.argv[8])
+isCube = str_to_bool(sys.argv[9])
+noise = float(sys.argv[10])
+soft_t = float(sys.argv[11])
+structure = sys.argv[12]
+plotOn = str_to_bool(sys.argv[13])
 if nprocs < 1 or nprocs > multiprocessing.cpu_count():
     print("You cannot use more than", multiprocessing.cpu_count(), "processors and less than 1")
     sys.exit(-1)
@@ -160,6 +161,8 @@ phi = phi_r*np.arange(-(n/2),(n/2), 1)
 header = readHeader(fits_file)
 M = header['NAXIS1']
 N = header['NAXIS2']
+n_los = (end_los - st_los) + 1
+print("Total LOS: ", n_los)
 print("Image size: ", M, "x", N)
 print("Frecuencies: ", m)
 print("Float Memory for Q and U: ", 2*M*N*m*4/(2**30), "GB")
@@ -171,8 +174,6 @@ print("Double Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
 #crpix1 = header['CRPIX1'] #center in pixels
 #crpix2 = header['CRPIX2'] #center in pixels
 # Get cutoff and RM-CLEAN params
-print("Reading params file: ", params_file)
-clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
 print("Reading FITS files")
 if isCube:
@@ -184,39 +185,33 @@ else:
     Q = np.flipud(Q)
     U = readCube_path(path_U, M, N, m, "U")
     U = np.flipud(U)
-# Build P, F, W and K
-P = Q + 1j*U
 
-F_base = multiprocessing.Array(ctypes.c_double, M*N*2*n)
+#LOS IDs
+ids = np.arange(st_los,end_los)
+    
+#Find pixels
+xy_pos = [find_pixel(M, N, x) for x in ids]
+
+# Build P, F, W and K
+P = np.zeros((m, n_los)) + 1j * np.zeros((m, n_los)) 
+los_count = 0
+for xy in xy_pos:
+    P[:,los_count] = Q[:,xy[0], xy[1]] + 1j * U[:, xy[0], xy[1]]
+    los_count += 1
+
+F_base = multiprocessing.Array(ctypes.c_double, n*2*n_los)
 F = np.ctypeslib.as_array(F_base.get_obj())
-F = F.view(np.complex128).reshape(n, M, N)
+F = F.view(np.complex128).reshape(n, n_los)
 
 W = np.ones(m)
 K = 1.0/np.sum(W)
 
-i_min = cutoff_params[0]
-i_max = cutoff_params[1]
-j_min = cutoff_params[2]
-j_max = cutoff_params[3]
-pixels = 0
-for i in range(i_min,i_max):
-    for j in range(j_min,j_max):
-            pixels = pixels+1
-
-ids = np.arange(i_min,i_max)
-items = len(ids)
-print("Total pixels: ", items)
-print("Min ra: ", j_min)
-print("Max ra: ", j_max)
-print("Min dec: ", i_min)
-print("Max dec: ", i_max)
-iterated_pixels = 0
 #Call parallel function
 
 id_procs = np.arange(0, nprocs)
-chunk_size = int(items/nprocs)
+chunk_size = int(n_los/nprocs)
 print("Chunk size: ", chunk_size)
-rest_chunk = items % nprocs
+rest_chunk = n_los % nprocs
 print("Rest: ", rest_chunk)
 chunks_start = ids[id_procs*chunk_size]
 print(chunks_start)
@@ -225,11 +220,11 @@ chunks_end[nprocs-1] = chunks_end[nprocs-1] + rest_chunk
 print(chunks_end)
 
 jobs = []
-lock = multiprocessing.Lock()
+#lock = multiprocessing.Lock()
 print("Going to parallel")
 start = time()
 for z in range(0,nprocs):
-    process = multiprocessing.Process(target=ParallelFISTA, args=(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure))
+    process = multiprocessing.Process(target=ParallelFISTA, args=(z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure))
     jobs.append(process)
     process.start()
 
@@ -240,8 +235,56 @@ for j in range(0, nprocs):
 
 time_taken = time()-start
 print ('Process took', time_taken, 'seconds')
-print("Writing solution to FITS")
 
-writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
-writeCube(F.real, output_file+"_real.fits", n, phi, phi_r, M, N, header)
-writeCube(F.imag, output_file+"_imag.fits", n, phi, phi_r, M, N, header)
+
+if plotOn:
+    P_selected = P[:,0]
+    F_selected = F[:,0]
+    f, axarr = plt.subplots(1, 2)
+    
+    min_y = min(np.min(np.abs(P_selected)), np.min(P_selected.real), np.min(P_selected.imag))
+    max_y = max(np.max(np.abs(P_selected)), np.max(P_selected.real), np.max(P_selected.imag))
+    axarr[0].plot(lambda2, np.abs(P_selected), 'k-')
+    axarr[0].plot(lambda2, P_selected.real, 'k-.')
+    axarr[0].plot(lambda2, P_selected.imag, 'k--')
+    axarr[0].set(xlabel=r'$\lambda^2$ [m$^{2}$]')
+    axarr[0].set_ylim([min_y, max_y])
+    #axarr[0].set_xlim([-200, 200])
+    axarr[0].set(title='P')
+    
+    #min_y = min(np.min(np.abs(F_selected)), np.min(F_selected.real), np.min(F_selected.imag))
+    #max_y = max(np.max(np.abs(F_selected)), np.max(F_selected.real), np.max(F_selected.imag))
+    
+    #axarr[1].plot(phi, np.abs(F_dirty), 'k-')
+    #axarr[1].plot(phi, F_dirty.real, 'k-.')
+    #axarr[1].plot(phi, F_dirty.imag, 'k--')
+    #axarr[1].set(xlabel=r'$\phi$[rad m$^{-2}$]')
+    #axarr[1].set_ylim([min_y, max_y])
+    #axarr[1].set_xlim([-1000, 1000])
+    #axarr[1].set(title='Dirty F')
+    
+    axarr[1].plot(phi, np.abs(F_selected), 'k-')
+    axarr[1].plot(phi, F_selected.real, 'k-.')
+    axarr[1].plot(phi, F_selected.imag, 'k--')
+    axarr[1].set(xlabel=r'$\phi$[rad m$^{-2}$]')
+    #axarr[2].set_ylim([min_y, max_y])
+    #axarr[2].set_xlim([-200, 200])
+    axarr[1].set(title='Reconstructed F with FISTA')
+    
+    #min_y = min(np.min(np.abs(P_back)), np.min(P_back.real), np.min(P_back.imag))
+    #max_y = max(np.max(np.abs(P_back)), np.max(P_back.real), np.max(P_back.imag))
+    
+    #axarr[2].plot(lambda2, np.abs(P_back), 'k-')
+    #axarr[2].plot(lambda2, P_back.real, 'k-.')
+    #axarr[2].plot(lambda2, P_back.imag, 'k--')
+    #axarr[2].set(xlabel=r'$\lambda^2$ [m$^{2}$]')
+    #axarr[2].set_ylim([min_y, max_y])
+    #axarr[2].set(title='P back')
+    
+    plt.show(block=True)
+print("Writing solution to a numpy array")
+#st_los,end_los
+np.save(path_output+"LOS_"+str(st_los)+"_to_"+str(end_los), F)
+#writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
+#writeCube(F.real, output_file+"_real.fits", n, phi, phi_r, M, N, header)
+#writeCube(F.imag, output_file+"_imag.fits", n, phi, phi_r, M, N, header)

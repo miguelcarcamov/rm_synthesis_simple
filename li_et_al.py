@@ -4,6 +4,7 @@ from transforms import *
 from FISTA_RMS import *
 from rm_clean import *
 from matplotlib import rc
+import sys
 rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 ## for Palatino and other serif fonts use:
 #rc('font',**{'family':'serif','serif':['Palatino']})
@@ -23,6 +24,7 @@ w2_max = (w_max/100.0)*(w_max/100.0)
 
 #delta_lambda = lambda2[1]-lambda2[0]
 lambda2_ref = (w2_max+w2_min)/2
+
 delta_lambda2 = (w2_max-w2_min)/(m-1)
 
 lambda2 = np.arange(w2_min, w2_max, delta_lambda2)
@@ -60,11 +62,10 @@ P_meas = form_P_meas(W, F, phi, lambda2, 0, m)
 F_dirty = form_F_dirty(K, P_meas, phi, lambda2, 0, n)
 
 soft_thresholds = [0.2, 0.001, 1.0]
-iterations = [5000, 1000, 1000]
 
-F_recon_thin = FISTA_Thin(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], iterations[0])
-F_recon_thick = FISTA_Thick(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], iterations[1])
-F_recon_mix = FISTA_Mix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], iterations[2])
+F_recon_thin = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[0], 0.00001, "Thin")
+F_recon_thick = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[1], 0.001, "Thick")
+F_recon_mix = Ultimate_FISTAMix(P_meas, W, K, phi, lambda2, 0, m, n, soft_thresholds[2], 0.001, "Both")
 F_recon_rmclean = RM_CLEAN(P_meas, R, W, K, phi, lambda2, 0, m, n, 11000, 0.1, 1e-12, cross_corr=True)
 
 f, axarr = plt.subplots(2, 3)

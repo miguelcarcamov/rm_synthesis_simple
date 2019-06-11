@@ -15,6 +15,7 @@ Created on Mon Mar 25 12:00:57 2019
 """
 import multiprocessing
 from astropy.io import fits
+import matplotlib.pyplot as plt
 import numpy as np
 import sys
 from transforms import *
