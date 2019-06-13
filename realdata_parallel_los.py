@@ -24,14 +24,14 @@ def readHeader(fitsfile):
     f_filename = fitsfile
     i_image = fits.open(f_filename)
     i_header = i_image[0].header
-    
+
     i_image.close()
     return i_header
-    
+
 def getFileNFrequencies(filename):
     f_filename = filename
     try:
-        with open(f_filename, "r") as f:     
+        with open(f_filename, "r") as f:
             freqs = f.readlines()
             m = len(freqs)
             freqs[:] = [freq.rstrip("\n") for freq in freqs]
@@ -43,7 +43,7 @@ def getFileNFrequencies(filename):
     freqs = np.array(freqs)
     return m, freqs
 
-    
+
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
@@ -58,14 +58,14 @@ def readCube_path(path, M, N, m, stokes):
 def readCube(file1, file2, M, N, m):
     Q = np.zeros([M, N, m])
     U = np.zeros([M, N, m])
-    
+
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
-    
+
     for i in range(m):
         Q = hdu1[0].data
         U = hdu2[0].data
-    
+
     hdu1.close()
     hdu2.close()
     return Q,U
@@ -93,7 +93,7 @@ def find_pixel(M, N, contiguous_id):
         for j in range(N):
             if contiguous_id == N*i+j:
                 return i,j
-  
+
 def ParallelFISTA(z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
     for i in range(chunks_start[z], chunks_end[z]):
             F[:,i] = Ultimate_FISTAMix(P[:,i], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
@@ -105,8 +105,8 @@ def ParallelDirty(z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambd
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 def test(z, chunks_start, chunks_end):
     print("I am process ",z, "I work from LOS: ", chunks_start[z], "to ", chunks_end[z])
-    
-        
+
+
 freq_text_file = sys.argv[1]
 st_los = int(sys.argv[2])
 end_los = int(sys.argv[3])
@@ -188,15 +188,15 @@ else:
 
 #LOS IDs
 ids_los = np.arange(st_los,end_los)
-ids = np.arange(0, n_los) 
-    
+ids = np.arange(0, n_los)
+
 #Find pixels
 xy_pos = [find_pixel(M, N, x) for x in ids_los]
 print("Pixels")
 print(xy_pos)
 
 # Build P, F, W and K
-P = np.zeros((m, n_los)) + 1j * np.zeros((m, n_los)) 
+P = np.zeros((m, n_los)) + 1j * np.zeros((m, n_los))
 los_count = 0
 for xy in xy_pos:
     P[:,los_count] = Q[:,xy[0], xy[1]] + 1j * U[:, xy[0], xy[1]]
@@ -244,7 +244,7 @@ if plotOn:
     P_selected = P[:,0]
     F_selected = F[:,0]
     f, axarr = plt.subplots(1, 2)
-    
+
     min_y = min(np.min(np.abs(P_selected)), np.min(P_selected.real), np.min(P_selected.imag))
     max_y = max(np.max(np.abs(P_selected)), np.max(P_selected.real), np.max(P_selected.imag))
     axarr[0].plot(lambda2, np.abs(P_selected), 'k-')
@@ -254,10 +254,10 @@ if plotOn:
     axarr[0].set_ylim([min_y, max_y])
     #axarr[0].set_xlim([-200, 200])
     axarr[0].set(title='P')
-    
+
     #min_y = min(np.min(np.abs(F_selected)), np.min(F_selected.real), np.min(F_selected.imag))
     #max_y = max(np.max(np.abs(F_selected)), np.max(F_selected.real), np.max(F_selected.imag))
-    
+
     #axarr[1].plot(phi, np.abs(F_dirty), 'k-')
     #axarr[1].plot(phi, F_dirty.real, 'k-.')
     #axarr[1].plot(phi, F_dirty.imag, 'k--')
@@ -265,7 +265,7 @@ if plotOn:
     #axarr[1].set_ylim([min_y, max_y])
     #axarr[1].set_xlim([-1000, 1000])
     #axarr[1].set(title='Dirty F')
-    
+
     axarr[1].plot(phi, np.abs(F_selected), 'k-')
     axarr[1].plot(phi, F_selected.real, 'k-.')
     axarr[1].plot(phi, F_selected.imag, 'k--')
@@ -273,19 +273,19 @@ if plotOn:
     #axarr[2].set_ylim([min_y, max_y])
     #axarr[2].set_xlim([-200, 200])
     axarr[1].set(title='Reconstructed F with FISTA')
-    
+
     #min_y = min(np.min(np.abs(P_back)), np.min(P_back.real), np.min(P_back.imag))
     #max_y = max(np.max(np.abs(P_back)), np.max(P_back.real), np.max(P_back.imag))
-    
+
     #axarr[2].plot(lambda2, np.abs(P_back), 'k-')
     #axarr[2].plot(lambda2, P_back.real, 'k-.')
     #axarr[2].plot(lambda2, P_back.imag, 'k--')
     #axarr[2].set(xlabel=r'$\lambda^2$ [m$^{2}$]')
     #axarr[2].set_ylim([min_y, max_y])
     #axarr[2].set(title='P back')
-    
+
     plt.show(block=True)
-print("Writing solution to a numpy array")
+print("Writing solution to a numpy array at: ", path_output+"LOS_"+str(st_los)+"_to_"+str(end_los))
 #st_los,end_los
 np.save(path_output+"LOS_"+str(st_los)+"_to_"+str(end_los), F)
 #writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
