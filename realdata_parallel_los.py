@@ -187,10 +187,13 @@ else:
     U = np.flipud(U)
 
 #LOS IDs
-ids = np.arange(st_los,end_los)
+ids_los = np.arange(st_los,end_los)
+ids = np.arange(0, n_los) 
     
 #Find pixels
-xy_pos = [find_pixel(M, N, x) for x in ids]
+xy_pos = [find_pixel(M, N, x) for x in ids_los]
+print("Pixels")
+print(xy_pos)
 
 # Build P, F, W and K
 P = np.zeros((m, n_los)) + 1j * np.zeros((m, n_los)) 
