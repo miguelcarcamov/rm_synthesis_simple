@@ -161,7 +161,7 @@ phi = phi_r*np.arange(-(n/2),(n/2), 1)
 header = readHeader(fits_file)
 M = header['NAXIS1']
 N = header['NAXIS2']
-n_los = (end_los - st_los) + 1
+n_los = end_los - st_los
 print("Total LOS: ", n_los)
 print("Image size: ", M, "x", N)
 print("Frecuencies: ", m)
