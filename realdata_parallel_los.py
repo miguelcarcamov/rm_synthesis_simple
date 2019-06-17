@@ -287,7 +287,7 @@ if plotOn:
     plt.show(block=True)
 print("Writing solution to a numpy array at: ", path_output+"LOS_"+str(st_los)+"_to_"+str(end_los))
 #st_los,end_los
-np.save(path_output+"LOS_"+str(st_los)+"_to_"+str(end_los), F)
+np.save(path_output+"LOS_"+str(st_los)+"_to_"+str(end_los-1), F)
 #writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
 #writeCube(F.real, output_file+"_real.fits", n, phi, phi_r, M, N, header)
 #writeCube(F.imag, output_file+"_imag.fits", n, phi, phi_r, M, N, header)
