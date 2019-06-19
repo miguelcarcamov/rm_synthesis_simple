@@ -285,7 +285,7 @@ if plotOn:
     #axarr[2].set(title='P back')
 
     plt.show(block=True)
-print("Writing solution to a numpy array at: ", path_output+"LOS_"+str(st_los)+"_to_"+str(end_los))
+print("Writing solution to a numpy array at: ", path_output+"LOS_"+str(st_los)+"_to_"+str(end_los-1))
 #st_los,end_los
 np.save(path_output+"LOS_"+str(st_los)+"_to_"+str(end_los-1), F)
 #writeCube(np.abs(F), output_file+"_abs.fits", n, phi, phi_r, M, N,header)
