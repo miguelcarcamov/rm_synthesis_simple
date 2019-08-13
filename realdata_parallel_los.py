@@ -113,12 +113,12 @@ def find_pixel(M, N, contiguous_id):
                 return i,j
 
 def ParallelFISTA(z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
-    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+str(z)+" computing chunk: ", 40):
         F[:,i] = Ultimate_FISTAMix(P[:,i], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
 def ParallelDirty(z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):
-    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+str(z)+" computing chunk: ", 40):
         F[:,i] = form_F_dirty(K, P[:,i], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 def test(z, chunks_start, chunks_end):
@@ -218,7 +218,7 @@ los_count = 0
 for xy in xy_pos:
     P[:,los_count] = Q[:,xy[0], xy[1]] + 1j * U[:, xy[0], xy[1]]
     los_count += 1
-    
+
 print("Building the multiprocessing array")
 F_base = multiprocessing.Array(ctypes.c_double, n*2*n_los)
 F = np.ctypeslib.as_array(F_base.get_obj())
