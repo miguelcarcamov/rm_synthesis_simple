@@ -20,6 +20,19 @@ from time import time
 RPDEG = (np.pi/180.0) #Radians per degree
 c = 2.99792458e8
 
+def progressbar(it, prefix="", size=60, file=sys.stdout):
+    count = len(it)
+    def show(j):
+        x = int(size*j/count)
+        file.write("%s[%s%s] %i/%i\r" % (prefix, "#"*x, "."*(size-x), j, count))
+        file.flush()
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i+1)
+    file.write("\n")
+    file.flush()
+
 def readHeader(fitsfile):
     f_filename = fitsfile
     i_image = fits.open(f_filename)
@@ -95,12 +108,12 @@ def find_pixel(M, N, contiguous_id):
                 return i,j
 
 def ParallelFISTA(z, chunks_start, chunks_end, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
-    for i in range(chunks_start[z], chunks_end[z]):
-            F[:,i] = Ultimate_FISTAMix(P[:,i], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
+        F[:,i] = Ultimate_FISTAMix(P[:,i], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
 def ParallelDirty(z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):
-    for i in range(chunks_start[z], chunks_end[z]):
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
         F[:,i] = form_F_dirty(K, P[:,i], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 def test(z, chunks_start, chunks_end):

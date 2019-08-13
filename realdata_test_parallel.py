@@ -19,18 +19,31 @@ from time import time
 RPDEG = (np.pi/180.0) #Radians per degree
 c = 2.99792458e8
 
+def progressbar(it, prefix="", size=60, file=sys.stdout):
+    count = len(it)
+    def show(j):
+        x = int(size*j/count)
+        file.write("%s[%s%s] %i/%i\r" % (prefix, "#"*x, "."*(size-x), j, count))
+        file.flush()
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i+1)
+    file.write("\n")
+    file.flush()
+
 def readHeader(fitsfile):
     f_filename = fitsfile
     i_image = fits.open(f_filename)
     i_header = i_image[0].header
-    
+
     i_image.close()
     return i_header
-    
+
 def getFileNFrequencies(filename):
     f_filename = filename
     try:
-        with open(f_filename, "r") as f:     
+        with open(f_filename, "r") as f:
             freqs = f.readlines()
             m = len(freqs)
             freqs[:] = [freq.rstrip("\n") for freq in freqs]
@@ -54,12 +67,12 @@ def getFileData(filename):
     niter = int(array_par[5])
     cutoff = float(array_par[6])
     threshold = float(array_par[7])
-    
+
     cutoff_params = [dec_min, dec_max, ra_min, ra_max]
     clean_params = [gain, niter, cutoff, threshold]
-    
+
     return clean_params, cutoff_params
-    
+
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
@@ -74,14 +87,14 @@ def readCube_path(path, M, N, m, stokes):
 def readCube(file1, file2, M, N, m):
     Q = np.zeros([M, N, m])
     U = np.zeros([M, N, m])
-    
+
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
-    
+
     for i in range(m):
         Q = hdu1[0].data
         U = hdu2[0].data
-    
+
     hdu1.close()
     hdu2.close()
     return Q,U
@@ -95,19 +108,19 @@ def writeCube(cube, output, nphi, phi, dphi, M, N, header):
     #header['CRVAL3'] = 'Phi
     hdu_new = fits.PrimaryHDU(cube, header)
     hdu_new.writeto(output, overwrite=True)
-    
+
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
-    for i in range(chunks_start[z], chunks_end[z]):
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
         for j in range(j_min, j_max):
             F[:,i,j] = Ultimate_FISTAMix(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
 def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):
-    for i in range(chunks_start[z], chunks_end[z]):
+    for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+z+" computing chunk: ", 40):
         for j in range(j_min, j_max):
             F[:,i,j] = form_F_dirty(K, P[:,i,j], phi, lambda2, lambda2_ref, n)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
-        
+
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
 path_Q = sys.argv[3]
