@@ -90,11 +90,10 @@ def readCube(file1, file2, M, N, m):
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
 
-    q_shape = [[str(x) for x in Q.shape] for tup in q_shape]
-    u_shape = [[str(x) for x in U.shape] for tup in u_shape]
-
-    data_q_shape = [[str(x) for x in hdu1[0].data.shape] for tup in data_q_shape]
-    data_u_shape = [[str(x) for x in hdu2[0].data.shape] for tup in data_u_shape]
+    q_shape = [[str(x) for x in tup] for tup in Q.shape]
+    u_shape = [[str(x) for x in tup] for tup in U.shape]
+    data_q_shape = [[str(x) for x in tup] for tup in hdu1[0].data.shape]
+    data_u_shape = [[str(x) for x in tup] for tup in hdu2[0].data.shape]
     print("Shape data Q: "+ q_shape + ", Shape data FITS: "+ data_q_shape)
     print("Shape data U: "+ u_shape + ", Shape data FITS: "+ data_u_shape)
 
