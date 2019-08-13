@@ -75,9 +75,8 @@ def readCube(file1, file2, M, N, m):
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
 
-    for i in range(m):
-        Q = hdu1[0].data
-        U = hdu2[0].data
+    Q = hdu1[0].data
+    U = hdu2[0].data
 
     hdu1.close()
     hdu2.close()
