@@ -59,7 +59,7 @@ def getFileNFrequencies(filename):
 
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
-    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
+    for i in progressbar(range(0,m),"Reading FITS files: ", 40):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
         print("Reading FITS File: ", f_filename)
         i_image = fits.open(f_filename)
@@ -80,7 +80,7 @@ def readCube(file1, file2, M, N, m):
     print("FITS U shape: ", hdu1[0].data.shape)
     print("FITS Q shape: ", hdu2[0].data.shape)
 
-    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
+    for i in progressbar(range(0,m),"Reading FITS files: ", 40):
         Q[:,:,i] = hdu1[0].data[i,:,:]
         U[:,:,i] = hdu2[0].data[i,:,:]
 
@@ -193,7 +193,6 @@ print("Double Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
 #crpix2 = header['CRPIX2'] #center in pixels
 # Get cutoff and RM-CLEAN params
 # Read cubes Q and U
-print("Reading FITS files")
 if isCube:
     Q,U = readCube(path_Q, path_U, M, N, m)
     Q = np.flipud(Q)
@@ -219,7 +218,8 @@ los_count = 0
 for xy in xy_pos:
     P[:,los_count] = Q[:,xy[0], xy[1]] + 1j * U[:, xy[0], xy[1]]
     los_count += 1
-
+    
+print("Building the multiprocessing array")
 F_base = multiprocessing.Array(ctypes.c_double, n*2*n_los)
 F = np.ctypeslib.as_array(F_base.get_obj())
 F = F.view(np.complex128).reshape(n, n_los)

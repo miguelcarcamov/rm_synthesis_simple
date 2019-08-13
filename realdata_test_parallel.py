@@ -75,7 +75,7 @@ def getFileData(filename):
 
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
-    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
+    for i in progressbar(range(0,m),"Reading FITS files: ", 40):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
@@ -95,7 +95,7 @@ def readCube(file1, file2, M, N, m):
     print("FITS U shape: ", hdu1[0].data.shape)
     print("FITS Q shape: ", hdu2[0].data.shape)
 
-    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
+    for i in progressbar(range(0,m),"Reading FITS files: ", 40):
         Q[:,:,i] = hdu1[0].data[i,:,:]
         U[:,:,i] = hdu2[0].data[i,:,:]
 
@@ -191,7 +191,6 @@ print("Double Memory for Q and U: ", 2*M*N*m*8/(2**30), "GB")
 print("Reading params file: ", params_file)
 clean_params, cutoff_params = getFileData(params_file)
 # Read cubes Q and U
-print("Reading FITS files")
 if isCube:
     Q,U = readCube(path_Q, path_U, M, N, m)
     Q = np.flipud(Q)
@@ -204,6 +203,7 @@ else:
 # Build P, F, W and K
 P = Q + 1j*U
 
+print("Building the multiprocessing array")
 F_base = multiprocessing.Array(ctypes.c_double, M*N*2*n)
 F = np.ctypeslib.as_array(F_base.get_obj())
 F = F.view(np.complex128).reshape(n, M, N)
