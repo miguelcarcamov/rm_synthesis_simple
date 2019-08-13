@@ -69,8 +69,8 @@ def readCube_path(path, M, N, m, stokes):
     return cube
 
 def readCube(file1, file2, M, N, m):
-    Q = np.zeros([M, N, m])
-    U = np.zeros([M, N, m])
+    Q = np.zeros([m, M, N])
+    U = np.zeros([m, M, N])
 
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
@@ -80,9 +80,8 @@ def readCube(file1, file2, M, N, m):
     print("FITS U shape: ", hdu1[0].data.shape)
     print("FITS Q shape: ", hdu2[0].data.shape)
 
-    for i in progressbar(range(0,m),"Reading FITS files: ", 40):
-        Q[:,:,i] = hdu1[0].data[i,:,:]
-        U[:,:,i] = hdu2[0].data[i,:,:]
+    Q = hdu1[0].data
+    U = hdu2[0].data
 
     hdu1.close()
     hdu2.close()
