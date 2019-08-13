@@ -75,7 +75,7 @@ def getFileData(filename):
 
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
-    for i in progressbar(range(m),"Reading FITS file: ", 40):
+    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
         f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
@@ -95,8 +95,9 @@ def readCube(file1, file2, M, N, m):
     print("FITS U shape: ", hdu1[0].data.shape)
     print("FITS Q shape: ", hdu2[0].data.shape)
 
-    Q = hdu1[0].data
-    U = hdu2[0].data
+    for i in progressbar(range(0,m),"Reading FITS file: ", 40):
+        Q[:,:,i] = hdu1[0].data[i,:,:]
+        U[:,:,i] = hdu2[0].data[i,:,:]
 
     hdu1.close()
     hdu2.close()
