@@ -30,13 +30,13 @@ def readHeader(fitsfile):
     dec = i_header['CRVAL2']
     crpix1 = i_header['CRPIX1']
     crpix2 = i_header['CRPIX2']
-    
+
     return [M,N, bmaj, bmin, bpa, cdelt1, cdelt2, ra, dec, crpix1, crpix2]
-    
+
 def getFileNFrequencies(filename):
     f_filename = filename
     try:
-        with open(f_filename, "r") as f:     
+        with open(f_filename, "r") as f:
             freqs = f.readlines()
             m = len(freqs)
             freqs[:] = [freq.rstrip("\n") for freq in freqs]
@@ -59,12 +59,12 @@ def getFileData(filename):
     niter = int(array_par[5])
     cutoff = float(array_par[6])
     threshold = float(array_par[7])
-    
+
     cutoff_params = [dec_min, dec_max, ra_min, ra_max]
     clean_params = [gain, niter, cutoff, threshold]
-    
+
     return clean_params, cutoff_params
-    
+
 def readCube(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
@@ -73,7 +73,7 @@ def readCube(path, M, N, m, stokes):
         i_image = fits.open(f_filename)
         data = np.squeeze(i_image[0].data)
         cube[i] = data
-        
+
     return cube
 
 def writeCube(cube, output):
@@ -82,7 +82,7 @@ def writeCube(cube, output):
     for img in cube:
         hdul.append(fits.ImageHDU(data=img.real))
     hdul.writeto(output)
-    
+
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
 path_Q = sys.argv[3]

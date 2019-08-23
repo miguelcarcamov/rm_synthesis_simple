@@ -115,7 +115,7 @@ def writeCube(cube, output, nphi, phi, dphi, M, N, header):
 def ParallelFISTA(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure):
     for i in progressbar(range(chunks_start[z], chunks_end[z]), "Thread "+str(z)+" computing chunk: ", 40):
         for j in range(j_min, j_max):
-            F[:,i,j] = Ultimate_FISTAMix(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)#Optimize P[:,i,j]
+            F[:,i,j] = Ultimate_FISTAMix(P[:,i,j], W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure, 1e-12)#Optimize P[:,i,j]
         #print("Processor: ", z, " - Chunk percentage: ", 100.0*(i/chunks_end[z]))
 
 def ParallelDirty(lock, z, chunks_start, chunks_end, j_min, j_max, F, P, K, phi, lambda2, lambda2_ref, n):

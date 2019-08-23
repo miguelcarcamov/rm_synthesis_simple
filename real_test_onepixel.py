@@ -39,13 +39,13 @@ def readHeader(fitsfile):
     #dec = i_header['CRVAL2']
     #crpix1 = i_header['CRPIX1']
     #crpix2 = i_header['CRPIX2']
-    
+
     return [M,N]
-    
+
 def getFileNFrequencies(filename):
     f_filename = filename
     try:
-        with open(f_filename, "r") as f:     
+        with open(f_filename, "r") as f:
             freqs = f.readlines()
             m = len(freqs)
             freqs[:] = [freq.rstrip("\n") for freq in freqs]
@@ -68,12 +68,12 @@ def getFileData(filename):
     niter = int(array_par[5])
     cutoff = float(array_par[6])
     threshold = float(array_par[7])
-    
+
     cutoff_params = [dec_min, dec_max, ra_min, ra_max]
     clean_params = [gain, niter, cutoff, threshold]
-    
+
     return clean_params, cutoff_params
-    
+
 def readCube_path(path, M, N, m, stokes):
     cube = np.zeros([m, M, N])
     for i in range(0,m):
@@ -88,14 +88,14 @@ def readCube_path(path, M, N, m, stokes):
 def readCube(file1, file2, M, N, m):
     Q = np.zeros([m, M, N])
     U = np.zeros([m, M, N])
-    
+
     hdu1 = fits.open(file1)
     hdu2 = fits.open(file2)
-    
+
     for i in range(m):
         Q = hdu1[0].data
         U = hdu2[0].data
-    
+
     hdu1.close()
     hdu2.close()
     return Q,U
@@ -103,13 +103,13 @@ def readCube(file1, file2, M, N, m):
 def writeCube(cube, output):
     hdu_new = fits.PrimaryHDU(cube)
     hdu_new.writeto(output)
-    
+
 def find_pixel(M, N, contiguous_id):
     for i in range(M):
         for j in range(N):
             if contiguous_id == N*i+j:
                 return i,j
-        
+
 freq_text_file = sys.argv[1]
 params_file = sys.argv[2]
 path_Q = sys.argv[3]
@@ -195,10 +195,10 @@ K = 1.0/np.sum(W)
 
 F_dirty = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
 #P_back = form_P_meas(W, F_dirty, phi, lambda2, lambda2_ref, m)
-F_recon = Ultimate_FISTAMix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure)
+F_recon = Ultimate_FISTAMix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, noise, structure, 1e-12)
 if plotOn:
     f, axarr = plt.subplots(1, 3)
-    
+
     min_y = min(np.min(np.abs(P)), np.min(P.real), np.min(P.imag))
     max_y = max(np.max(np.abs(P)), np.max(P.real), np.max(P.imag))
     axarr[0].plot(lambda2, np.abs(P), 'k-')
@@ -208,10 +208,10 @@ if plotOn:
     axarr[0].set_ylim([min_y, max_y])
     #axarr[0].set_xlim([-200, 200])
     axarr[0].set(title='P')
-    
+
     min_y = min(np.min(np.abs(F_dirty)), np.min(F_dirty.real), np.min(F_dirty.imag))
     max_y = max(np.max(np.abs(F_dirty)), np.max(F_dirty.real), np.max(F_dirty.imag))
-    
+
     axarr[1].plot(phi, np.abs(F_dirty), 'k-')
     axarr[1].plot(phi, F_dirty.real, 'k-.')
     axarr[1].plot(phi, F_dirty.imag, 'k--')
@@ -219,7 +219,7 @@ if plotOn:
     axarr[1].set_ylim([min_y, max_y])
     axarr[1].set_xlim([-1000, 1000])
     axarr[1].set(title='Dirty F')
-    
+
     axarr[2].plot(phi, np.abs(F_recon), 'k-')
     axarr[2].plot(phi, F_recon.real, 'k-.')
     axarr[2].plot(phi, F_recon.imag, 'k--')
@@ -227,16 +227,16 @@ if plotOn:
     axarr[2].set_ylim([min_y, max_y])
     #axarr[2].set_xlim([-200, 200])
     axarr[2].set(title='Reconstructed F with FISTA')
-    
+
     #min_y = min(np.min(np.abs(P_back)), np.min(P_back.real), np.min(P_back.imag))
     #max_y = max(np.max(np.abs(P_back)), np.max(P_back.real), np.max(P_back.imag))
-    
+
     #axarr[2].plot(lambda2, np.abs(P_back), 'k-')
     #axarr[2].plot(lambda2, P_back.real, 'k-.')
     #axarr[2].plot(lambda2, P_back.imag, 'k--')
     #axarr[2].set(xlabel=r'$\lambda^2$ [m$^{2}$]')
     #axarr[2].set_ylim([min_y, max_y])
     #axarr[2].set(title='P back')
-    
+
     plt.show(block=True)
 np.save(output_file, F_recon)

@@ -10,233 +10,179 @@ import numpy as np
 import sys
 import pywt
 from transforms import form_P_meas, form_F_li, form_F_dirty
-from thresholds import softThreshold
+from thresholds import softThreshold, hardThreshold
 
-def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
+def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol):
     dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-    #F_meas = F_meas/len(F_meas)
     X_temp = dirty_F
     X = X_temp
     t_new = 1
-    for i in range(0, iterations):
+    niter = int(np.floor(lambda_threshold/delta_noise))
+    for i in range(0, niter):
             X_old = X_temp
             t_old = t_new
             #Gradient
             comb = X
             F_comb = form_P_meas(W, comb, phi, lambda2, lambda2_ref, m)
             D = F_comb - P
+            if i%1000==0:
+                objf = 0.5*np.sqrt(np.sum(np.abs(D)**2))
+                print("Iteration - ", i,": ", objf)
             comb = comb - form_F_li(K, D, phi, lambda2, lambda2_ref, n)
 
-            Xreal = comb.real
-            Ximag = comb.imag
+            aux_Xreal = comb.real
+            aux_Ximag = comb.imag
 
-            X_temp.real = softThreshold(Xreal, soft_threshold)
+            aux_Xreal = softThreshold(aux_Xreal, lambda_threshold)
+            aux_Ximag = softThreshold(aux_Ximag, lambda_threshold)
 
-            X_temp.imag = softThreshold(Ximag, soft_threshold)
+            X_temp = aux_Xreal + 1j*aux_Ximag
 
+            norm = np.sum(np.abs(X_temp - X_old))
+            if norm <= tol:
+                print("Iterations: ", i)
+                print("Exit due to tolerance: ", norm, "<= ", tol)
+                break;
+
+            #Step using the Lipschitz constant
             t_new = (1+np.sqrt(1 + 4*t_old**2))/2
-            X.real = X_temp.real + (t_old-1)/t_new*(X_temp.real-X_old.real)
-            X.imag = X_temp.imag + (t_old-1)/t_new*(X_temp.imag-X_old.imag)
-
+            aux_Xreal = X_temp.real + (t_old-1)/t_new*(X_temp.real-X_old.real)
+            aux_Ximag = X_temp.imag + (t_old-1)/t_new*(X_temp.imag-X_old.imag)
+            X = aux_Xreal + 1j*aux_Ximag
+            lambda_threshold = lambda_threshold - delta_noise
     return X_temp
 
-def FISTA_Thick(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
+def FISTA_Thick(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol):
+    db4 = pywt.Wavelet('db4')
     dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-    #F_meas = F_meas/len(F_meas)
     X_temp = dirty_F
     X = X_temp
     t_new = 1
-    db8 = pywt.Wavelet('db8')
-    for i in range(0, iterations):
+    niter = int(np.floor(lambda_threshold/delta_noise))
+    for i in range(0, niter):
             X_old = X_temp
             t_old = t_new
             #Gradient
             comb = X
             F_comb = form_P_meas(W, comb, phi, lambda2, lambda2_ref, m)
             D = F_comb - P
+            if i%1000==0:
+                objf = 0.5*np.sqrt(np.sum(np.abs(D)**2))
+                print("Iteration - ", i,": ", objf)
             comb = comb - form_F_li(K, D, phi, lambda2, lambda2_ref, n)
 
-            re_coeffs = pywt.wavedec(comb.real, db8, level=3, mode='zpd')
-            im_coeffs = pywt.wavedec(comb.imag, db8, level=3, mode='zpd')
+            aux_Xreal = comb.real
+            aux_Ximag = comb.imag
+
+            re_coeffs = pywt.wavedec(aux_Xreal, db4, level=3, mode='zpd')
+            im_coeffs = pywt.wavedec(aux_Ximag, db4, level=3, mode='zpd')
 
             thres_re_coeffs = []
             for j in re_coeffs:
-                softThreshold(j, lambda_threshold)
-                thres_re_coeffs.append(j)
+                thres_j = pywt.threshold(j, lambda_threshold, 'soft')
+                thres_re_coeffs.append(thres_j)
 
             thres_im_coeffs = []
             for k in im_coeffs:
-                softThreshold(k, lambda_threshold)
-                thres_im_coeffs.append(k)
+                thres_k = pywt.threshold(k, lambda_threshold, 'soft')
+                thres_im_coeffs.append(thres_k)
 
-            X_temp.real = pywt.waverec(thres_re_coeffs, 'db8', mode='zpd')
-            X_temp.imag = pywt.waverec(thres_im_coeffs, 'db8', mode='zpd')
+            aux_Xreal = pywt.waverec(thres_re_coeffs, 'db4', mode='zpd')
+            aux_Ximag = pywt.waverec(thres_im_coeffs, 'db4', mode='zpd')
 
+            X_temp  = aux_Xreal + 1j*aux_Ximag
+
+            norm = np.sum(np.abs(X_temp - X_old))
+            if norm <= tol:
+                print("Iterations: ", i)
+                print("Exit due to tolerance: ", norm, "<= ", tol)
+                break;
+
+            #Step using the Lipschitz constant
             t_new = (1+np.sqrt(1 + 4*t_old**2))/2
-            X.real = X_temp.real + (t_old-1)/t_new*(X_temp.real-X_old.real)
-            X.imag = X_temp.imag + (t_old-1)/t_new*(X_temp.imag-X_old.imag)
-
+            aux_Xreal = X_temp.real + (t_old-1)/t_new*(X_temp.real-X_old.real)
+            aux_Ximag = X_temp.imag + (t_old-1)/t_new*(X_temp.imag-X_old.imag)
+            X = aux_Xreal + 1j*aux_Ximag
+            lambda_threshold = lambda_threshold - delta_noise
+    print("Max iterations reached")
     return X_temp
 
-def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
+
+def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol):
+    db4 = pywt.Wavelet('db4')
+    F_recon = np.zeros(n) + 1j*np.zeros(n)
+
     F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
     F_thick = np.zeros(n) + 1j*np.zeros(n)
-    db8 = pywt.Wavelet('db8')
-    for i in range(0, iterations):
-            #Thin structures
-            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-            residual = P - F_comb
-            F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-            Xreal = F_thin.real
-            Ximag = F_thin.imag
-            X_tempreal = softThreshold(Xreal, soft_threshold)
-            X_tempimag = softThreshold(Ximag, soft_threshold)
-            F_thin = X_tempreal + 1j* X_tempimag
-
-            #Thick structures
-            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-            residual = P - F_comb
-            F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-
-            re_coeffs = pywt.wavedec(F_thick.real, db8, level=3, mode='zpd')
-            im_coeffs = pywt.wavedec(F_thick.imag, db8, level=3, mode='zpd')
-
-            thres_re_coeffs = []
-            for j in re_coeffs:
-                softThreshold(j, lambda_threshold)
-                thres_re_coeffs.append(j)
-
-            thres_im_coeffs = []
-            for k in im_coeffs:
-                softThreshold(k, lambda_threshold)
-                thres_im_coeffs.append(k)
-
-            real_Xthick = pywt.waverec(thres_re_coeffs, 'db8', mode='zpd')
-            imag_Xthick = pywt.waverec(thres_im_coeffs, 'db8', mode='zpd')
-
-            F_thick = real_Xthick + 1j* imag_Xthick
-    return F_thin+F_thick
-
-
-def FISTA_Mix_General(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_threshold, iterations):
-    F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-    F_thick = np.zeros(n) + 1j*np.zeros(n)
-
-    for i in range(0, iterations):
-            #Thin structures
-            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-            residual = P - F_comb
-            F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-            Xreal = F_thin.real
-            Ximag = F_thin.imag
-            X_tempreal = softThreshold(Xreal, soft_threshold)
-            X_tempimag = softThreshold(Ximag, soft_threshold)
-            F_thin = X_tempreal + 1j* X_tempimag
-
-            #Thick structures
-            F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-            residual = P - F_comb
-            F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-
-            re_coeffs  = pywt.dwt(F_thick.real, 'db8', pywt.Modes.zero)
-            im_coeffs = pywt.dwt(F_thick.imag, 'db8', pywt.Modes.zero)
-
-            thres_re_coeffs = []
-            for j in re_coeffs:
-                softThreshold(j, lambda_threshold)
-                thres_re_coeffs.append(j)
-
-            thres_im_coeffs = []
-            for k in im_coeffs:
-                softThreshold(k, lambda_threshold)
-                thres_im_coeffs.append(k)
-
-            real_Xthick = pywt.idwt(thres_re_coeffs, 'db8', pywt.Modes.zero)
-            imag_Xthick = pywt.idwt(thres_im_coeffs, 'db8', pywt.Modes.zero)
-
-            F_thick = real_Xthick + 1j* imag_Xthick
-    return F_thin+F_thick
-
-
-def Ultimate_FISTAMix(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, structure):
-    db8 = pywt.Wavelet('db8')
-
-    if structure=="Thick":
-        F_thin = np.zeros(n) + 1j*np.zeros(n)
-        F_thick = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-    else:
-        F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
-        F_thick = np.zeros(n) + 1j*np.zeros(n)
+    F_temp = F_thin + F_thick
+    F = F_temp
+    t_new= 1
 
     niter = int(np.floor(lambda_threshold/delta_noise))
     for i in range(0, niter):
-            if structure=="Thin":
-                #Thin structures
-                F_comb = form_P_meas(W, F_thin, phi, lambda2, lambda2_ref, m)
-                residual = P - F_comb
-                F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-                Xreal = F_thin.real
-                Ximag = F_thin.imag
-                X_tempreal = softThreshold(Xreal, lambda_threshold)
-                X_tempimag = softThreshold(Ximag, lambda_threshold)
-                F_thin = X_tempreal + 1j* X_tempimag
-            elif structure=="Thick":
-                #Thick structures
-                F_comb = form_P_meas(W, F_thick, phi, lambda2, lambda2_ref, m)
-                residual = P - F_comb
-                F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
+        F_old = F_temp
+        t_old = t_new
+        #Search thin structures
+        F_comb = form_P_meas(W, F, phi, lambda2, lambda2_ref, m)
+        D = P - F_comb
+        if i%1000==0:
+            objf = 0.5*np.sqrt(np.sum(np.abs(D)**2))
+            print("Iteration - ", i,": ", objf)
+        F_thin += form_F_li(K, D, phi, lambda2, lambda2_ref, n)
 
-                re_coeffs = pywt.wavedec(F_thick.real, db8, level=3, mode='zpd')
-                im_coeffs = pywt.wavedec(F_thick.imag, db8, level=3, mode='zpd')
+        aux_Xreal = softThreshold(F_thin.real, lambda_threshold)
+        aux_Ximag = softThreshold(F_thin.imag, lambda_threshold)
 
-                thres_re_coeffs = []
-                for j in re_coeffs:
-                    softThreshold(j, lambda_threshold)
-                    thres_re_coeffs.append(j)
+        F_thin = aux_Xreal + 1j*aux_Ximag
 
-                thres_im_coeffs = []
-                for k in im_coeffs:
-                    softThreshold(k, lambda_threshold)
-                    thres_im_coeffs.append(k)
+        F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
+        D = P - F_comb
+        F_thick += form_F_li(K, D, phi, lambda2, lambda2_ref, n)
 
-                real_Xthick = pywt.waverec(thres_re_coeffs, 'db8', mode='zpd')
-                imag_Xthick = pywt.waverec(thres_im_coeffs, 'db8', mode='zpd')
+        aux_Xreal = F_thick.real
+        aux_Ximag = F_thick.imag
 
-                F_thick = real_Xthick + 1j* imag_Xthick
-            else:
-                #Thin structures
-                F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-                residual = P - F_comb
-                F_thin = F_thin + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
-                Xreal = F_thin.real
-                Ximag = F_thin.imag
-                X_tempreal = softThreshold(Xreal, lambda_threshold)
-                X_tempimag = softThreshold(Ximag, lambda_threshold)
-                F_thin = X_tempreal + 1j* X_tempimag
+        re_coeffs = pywt.wavedec(aux_Xreal, db4, level=3, mode='zpd')
+        im_coeffs = pywt.wavedec(aux_Ximag, db4, level=3, mode='zpd')
 
-                #Thick structures
-                F_comb = form_P_meas(W, F_thin+F_thick, phi, lambda2, lambda2_ref, m)
-                residual = P - F_comb
-                F_thick = F_thick + form_F_li(K, residual, phi, lambda2, lambda2_ref, n)
+        thres_re_coeffs = []
+        for j in re_coeffs:
+            thres_j = pywt.threshold(j, lambda_threshold, 'soft')
+            thres_re_coeffs.append(thres_j)
 
-                re_coeffs = pywt.wavedec(F_thick.real, db8, level=3, mode='zpd')
-                im_coeffs = pywt.wavedec(F_thick.imag, db8, level=3, mode='zpd')
+        thres_im_coeffs = []
+        for k in im_coeffs:
+            thres_k = pywt.threshold(k, lambda_threshold, 'soft')
+            thres_im_coeffs.append(thres_k)
 
-                thres_re_coeffs = []
-                for j in re_coeffs:
-                    softThreshold(j, lambda_threshold)
-                    thres_re_coeffs.append(j)
+        aux_Xreal = pywt.waverec(thres_re_coeffs, 'db4', mode='zpd')
+        aux_Ximag = pywt.waverec(thres_im_coeffs, 'db4', mode='zpd')
 
-                thres_im_coeffs = []
-                for k in im_coeffs:
-                    softThreshold(k, lambda_threshold)
-                    thres_im_coeffs.append(k)
+        F_thick = aux_Xreal + 1j*aux_Ximag
 
-                real_Xthick = pywt.waverec(thres_re_coeffs, 'db8', mode='zpd')
-                imag_Xthick = pywt.waverec(thres_im_coeffs, 'db8', mode='zpd')
+        F_temp = F_thin + F_thick
 
-                F_thick = real_Xthick + 1j* imag_Xthick
+        norm = np.sum(np.abs(F_temp - F_old))
+        if norm <= tol:
+            print("Iterations: ", i)
+            print("Exit due to tolerance: ", norm, "<= ", tol)
+            break;
 
-            lambda_threshold = lambda_threshold-delta_noise
+        #Step using the Lipschitz constant
+        t_new = (1+np.sqrt(1 + 4*t_old**2))/2
+        aux_Xreal = F_temp.real + (t_old-1)/t_new*(F_temp.real-F_old.real)
+        aux_Ximag = F_temp.imag + (t_old-1)/t_new*(F_temp.imag-F_old.imag)
+        F = aux_Xreal + 1j*aux_Ximag
+        lambda_threshold = lambda_threshold - delta_noise
+    print("Max iterations reached")
+    return F_temp
 
-    return F_thin+F_thick
+def Ultimate_FISTAMix(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, structure, tol):
+
+    if structure=="Thin":
+        F_recon = FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol)
+    elif structure=="Thick":
+        F_recon = FISTA_Thick(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol)
+    else:
+        F_recon = FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol)
+    return F_recon
