@@ -249,9 +249,10 @@ for z in range(0,nprocs):
     process.start()
 
 # Ensure all of the processes have finished
-for j in range(0, nprocs):
+
+for j in progressbar(range(0, nprocs),'Process ending', 40):
     jobs[j].join()
-    print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
+    #print("Process ", jobs[j].pid, " ended - Start: ",chunks_start[j], " - End: ", chunks_end[j])
 
 time_taken = time()-start
 print ('Process took', time_taken, 'seconds')
