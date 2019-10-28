@@ -8,10 +8,10 @@ Created on Tue Mar 12 18:34:19 2019
 
 import numpy as np
 
-def form_F_dirty(K, P_meas, phi, lambda2, lambda2_ref, n):
+def form_F_dirty(K, W, P_meas, phi, lambda2, lambda2_ref, n):
     F = np.zeros(n) + 1j*np.zeros(n)
     for i in range(0,n):
-        F[i] = np.sum(P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
+        F[i] = np.sum(W*P_meas*np.exp(-2j*phi[i]*(lambda2-lambda2_ref)))
     return K*F
 
 def form_P_meas(W, F, phi, lambda2, lambda2_ref, m):

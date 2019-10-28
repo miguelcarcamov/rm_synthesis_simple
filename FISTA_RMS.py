@@ -13,7 +13,7 @@ from transforms import form_P_meas, form_F_li, form_F_dirty
 from thresholds import softThreshold, hardThreshold
 
 def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol):
-    dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    dirty_F = form_F_dirty(K, W, P, phi, lambda2, lambda2_ref, n)
     X_temp = dirty_F
     X = X_temp
     t_new = 1
@@ -39,10 +39,10 @@ def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta
             X_temp = aux_Xreal + 1j*aux_Ximag
 
             norm = np.sum(np.abs(X_temp - X_old))
-            if norm <= tol:
-                print("Iterations: ", i)
-                print("Exit due to tolerance: ", norm, "<= ", tol)
-                break;
+            #if norm <= tol:
+            #    print("Iterations: ", i)
+            #    print("Exit due to tolerance: ", norm, "<= ", tol)
+            #    break;
 
             #Step using the Lipschitz constant
             t_new = (1+np.sqrt(1 + 4*t_old**2))/2
@@ -54,7 +54,7 @@ def FISTA_Thin(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta
 
 def FISTA_Thick(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_noise, tol):
     db4 = pywt.Wavelet('db4')
-    dirty_F = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    dirty_F = form_F_dirty(K, W, P, phi, lambda2, lambda2_ref, n)
     X_temp = dirty_F
     X = X_temp
     t_new = 1
@@ -112,7 +112,7 @@ def FISTA_Mix(P, W, K, phi, lambda2, lambda2_ref, m, n, lambda_threshold, delta_
     db4 = pywt.Wavelet('db4')
     F_recon = np.zeros(n) + 1j*np.zeros(n)
 
-    F_thin = form_F_dirty(K, P, phi, lambda2, lambda2_ref, n)
+    F_thin = form_F_dirty(K, W, P, phi, lambda2, lambda2_ref, n)
     F_thick = np.zeros(n) + 1j*np.zeros(n)
     F_temp = F_thin + F_thick
     F = F_temp

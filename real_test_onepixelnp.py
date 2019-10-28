@@ -24,23 +24,6 @@ from rm_clean import *
 RPDEG = (np.pi/180.0) #Radians per degree
 c = 2.99792458e8
 
-def readHeader(fitsfile):
-    f_filename = fitsfile
-    i_image = fits.open(f_filename)
-    i_header = i_image[0].header
-    M = i_header['NAXIS1']
-    N = i_header['NAXIS2']
-    #bmaj = i_header['BMAJ']
-    #bmin = i_header['BMIN']
-    #bpa = i_header['BPA']
-    #cdelt1 = i_header['CDELT1']
-    #cdelt2 = i_header['CDELT2']
-    #ra = i_header['CRVAL1']
-    #dec = i_header['CRVAL2']
-    #crpix1 = i_header['CRPIX1']
-    #crpix2 = i_header['CRPIX2']
-
-    return [M,N]
 
 def getFileNFrequencies(filename):
     f_filename = filename
@@ -56,71 +39,13 @@ def getFileNFrequencies(filename):
     freqs = np.array(freqs)
     return m, freqs
 
-def getFileData(filename):
-    f_filename = filename
-    array_par = np.loadtxt(f_filename, comments='%', usecols=1)
-    dec_min = int(array_par[0])
-    dec_max = int(array_par[1])
-    ra_min = int(array_par[2])
-    ra_max = int(array_par[3])
-
-    gain = float(array_par[4])
-    niter = int(array_par[5])
-    cutoff = float(array_par[6])
-    threshold = float(array_par[7])
-
-    cutoff_params = [dec_min, dec_max, ra_min, ra_max]
-    clean_params = [gain, niter, cutoff, threshold]
-
-    return clean_params, cutoff_params
-
-def readCube_path(path, M, N, m, stokes):
-    cube = np.zeros([m, M, N])
-    for i in range(0,m):
-        f_filename = path+'BAND03_CHAN0'+str(i)+'_'+stokes+'image.restored.corr_conv.fits'
-        print("Reading FITS File: ", f_filename)
-        i_image = fits.open(f_filename)
-        data = np.squeeze(i_image[0].data)
-        cube[i] = data
-        i_image.close()
-    return cube
-
-def readCube(file1, file2, M, N, m):
-    Q = np.zeros([m, M, N])
-    U = np.zeros([m, M, N])
-
-    hdu1 = fits.open(file1)
-    hdu2 = fits.open(file2)
-
-    Q = hdu1[0].data
-    U = hdu2[0].data
-
-    hdu1.close()
-    hdu2.close()
-    return Q,U
-
-def writeCube(cube, output):
-    hdu_new = fits.PrimaryHDU(cube)
-    hdu_new.writeto(output)
-
-def find_pixel(M, N, contiguous_id):
-    for i in range(M):
-        for j in range(N):
-            if contiguous_id == N*i+j:
-                return i,j
-
-freq_text_file = sys.argv[1]
-params_file = sys.argv[2]
-path_Q = sys.argv[3]
-path_U = sys.argv[4]
-fits_file = sys.argv[5]
-output_file = sys.argv[6]
-pixel_id = int(sys.argv[7])
-isCube = sys.argv[8]
-noise = float(sys.argv[9])
-soft_t = float(sys.argv[10])
-plotOn = sys.argv[11]
-structure = sys.argv[12]
+n_id = int(sys.argv[1])
+freq_text_file = sys.argv[2]
+file_name = sys.argv[3]
+noise = float(sys.argv[4])
+soft_t = float(sys.argv[5])
+plotOn = sys.argv[6]
+structure = sys.argv[7]
 # Get number of frequencies and values
 m, freqs = getFileNFrequencies(freq_text_file)
 # Calculate the scales for lambda2 and phi
@@ -159,35 +84,16 @@ phi_r = 2*phi_max/n; # Then we get our real resolution
 print("Phi_r: ", phi_r)
 
 phi = phi_r*np.arange(-(n/2),(n/2), 1) # We make our phi axis
-# Get information from header
-header = readHeader(fits_file)
-M = header[0]
-N = header[1]
-#dx = -1.0*header[5]*RPDEG #to radians
-#dy = header[6]*RPDEG #to radians
-#ra = header[7]*RPDEG #to radians
-#dec= header[8]*RPDEG #to radians
-#crpix1 = header[9] #center in pixels
-#crpix2 = header[10] #center in pixels
-# Get cutoff and RM-CLEAN params
-print("Reading params file: ", params_file)
-clean_params, cutoff_params = getFileData(params_file)
-# Read cubes Q and U
-print("Reading FITS files")
-if isCube:
-    Q,U = readCube(path_Q, path_U, M, N, m)
-    Q = np.flipud(Q)
-    U = np.flipud(U)
-else:
-    Q = readCube_path(path_Q, M, N, m, "Q")
-    Q = np.flipud(Q)
-    U = readCube_path(path_U, M, N, m, "U")
-    U = np.flipud(U)
+
+np_array = np.load(file_name)
+
+Q = np_array[n_id,:,0]
+U = np_array[n_id,:,1]
 
 # Build P, F, W and K
-i, j = find_pixel(M, N, pixel_id)
-print("Iterating in pixel (", i, ",", j, ")")
-P = Q[:, i, j] + 1j*U[:, i, j]
+P = Q + 1j*U
+
+P = P[::-1]
 
 W = np.ones(m)
 K = 1.0/np.sum(W)
@@ -198,15 +104,15 @@ F_recon = Ultimate_FISTAMix(P, W, K, phi, lambda2, lambda2_ref, m, n, soft_t, no
 if plotOn:
     plt.rc('text', usetex=True)
     plt.rc('font', family='serif')
+
     plt.figure(1)
     #min_y = min(np.min(np.abs(P)), np.min(P.real), np.min(P.imag))
     #max_y = max(np.max(np.abs(P)), np.max(P.real), np.max(P.imag))
     #axarr[0].plot(lambda2, np.abs(P), 'k-')
-    plt.plot(lambda2, P.real, 'k-.')
-    plt.plot(lambda2, P.imag, 'k--')
+    plt.plot(lambda2, P.real, 'k-')
+    plt.plot(lambda2, P.imag, 'k-.')
     plt.xlabel(r'$\lambda^2$ [m$^{2}$]')
     plt.ylabel(r"Flux (Jy)")
-    
     #axarr[0].set_ylim([min_y, max_y])
     #axarr[0].set_xlim([-200, 200])
     #title='P')
